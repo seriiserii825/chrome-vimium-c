@@ -23,6 +23,7 @@ import { showTimecode, hideTimecode, isTimecodeVisible, saveCurrentTimecode, exp
 import { showHistorySearch, hideHistorySearch, isHistorySearchVisible, HistoryEntry } from "./historysearch";
 import { showFind, hideFind, isFindVisible } from "./findinpage";
 import { applyBestQuality } from "./videoquality";
+import { physicalKey } from "./keycode";
 import { showToast } from "./toast";
 import { writeText } from "./clipboard";
 import { startScroll, stopScroll, scrollToTop, scrollToBottom } from "./scroll";
@@ -415,8 +416,10 @@ document.addEventListener(
 
     if (e.ctrlKey || e.metaKey) return;
 
+    const key = physicalKey(e);
+
     if (e.altKey) {
-      const action = altKeyMap.get(e.key);
+      const action = altKeyMap.get(key);
       if (action) {
         e.preventDefault();
         actions[action]();
@@ -432,7 +435,7 @@ document.addEventListener(
     if (winSession) {
       e.preventDefault();
       e.stopPropagation();
-      const { result, windowId } = typeWindowPick(winSession, e.key);
+      const { result, windowId } = typeWindowPick(winSession, key);
       if (result !== "continue") {
         endWindowPick(winSession);
         winSession = null;
@@ -446,7 +449,7 @@ document.addEventListener(
     if (tabSession) {
       e.preventDefault();
       e.stopPropagation();
-      const { result, tabId } = typeTabSwitch(tabSession, e.key);
+      const { result, tabId } = typeTabSwitch(tabSession, key);
       if (result !== "continue") {
         endTabSwitch(tabSession);
         tabSession = null;
@@ -461,7 +464,7 @@ document.addEventListener(
       e.preventDefault();
       e.stopPropagation();
       const mode = session.mode;
-      const result = typeHint(session, e.key);
+      const result = typeHint(session, key);
       if (result !== "continue") {
         endHints(session);
         session = null;
@@ -499,12 +502,12 @@ document.addEventListener(
       return;
     }
 
-    if (isTimecodeVisible() && e.key === "q") { hideTimecode(); e.preventDefault(); return; }
-    if (isCookieConfirmVisible() && e.key === "q") { hideCookieConfirm(); e.preventDefault(); return; }
-    if (isImageInfoVisible() && e.key === "q") { hideImageInfo(); e.preventDefault(); return; }
-    if (isSeoInfoVisible() && e.key === "q") { hideSeoInfo(); e.preventDefault(); return; }
-    if (isSeoHeadingsVisible() && e.key === "q") { hideSeoHeadings(); e.preventDefault(); return; }
-    if (isHelpVisible() && e.key === "q") { hideHelp(); e.preventDefault(); return; }
+    if (isTimecodeVisible() && key === "q") { hideTimecode(); e.preventDefault(); return; }
+    if (isCookieConfirmVisible() && key === "q") { hideCookieConfirm(); e.preventDefault(); return; }
+    if (isImageInfoVisible() && key === "q") { hideImageInfo(); e.preventDefault(); return; }
+    if (isSeoInfoVisible() && key === "q") { hideSeoInfo(); e.preventDefault(); return; }
+    if (isSeoHeadingsVisible() && key === "q") { hideSeoHeadings(); e.preventDefault(); return; }
+    if (isHelpVisible() && key === "q") { hideHelp(); e.preventDefault(); return; }
 
     if (isHelpVisible()) return;
     if (isHistorySearchVisible()) return;
@@ -529,7 +532,7 @@ document.addEventListener(
     }
 
     if (pendingPrefix) {
-      const combo = pendingPrefix + e.key;
+      const combo = pendingPrefix + key;
       if (keyMap.has(combo)) {
         clearPending();
         e.preventDefault();
@@ -547,15 +550,15 @@ document.addEventListener(
       return;
     }
 
-    if (prefixStrings.has(e.key)) {
+    if (prefixStrings.has(key)) {
       e.preventDefault();
-      pendingPrefix = e.key;
+      pendingPrefix = key;
       prefixTimeout = setTimeout(clearPending, 5000);
       showWhichKey(pendingPrefix, mappings);
       return;
     }
 
-    const action = keyMap.get(e.key);
+    const action = keyMap.get(key);
     if (action) {
       e.preventDefault();
       dispatchAction(action);
@@ -569,7 +572,7 @@ document.addEventListener(
 document.addEventListener(
   "keyup",
   (e: KeyboardEvent) => {
-    const action = keyMap.get(e.key);
+    const action = keyMap.get(physicalKey(e));
     if (action && continuousActions.has(action)) {
       stopScroll();
     }
