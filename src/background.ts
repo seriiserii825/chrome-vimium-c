@@ -187,23 +187,26 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; current
   }
 
   if (type === "reloadExtension") {
-    const QUICK_TABS_NAME = "Quick Tabs Project";
+    const TARGET_NAMES = ["Quick Tabs Project", "Figma Copy — Page Order"];
 
     const selfReload = () => {
       chrome.storage.local.set({ reloadedToast: true }, () => chrome.runtime.reload());
     };
 
     chrome.management.getAll((extensions) => {
-      const target = extensions.find((e) => e.name === QUICK_TABS_NAME && e.id !== chrome.runtime.id);
+      const targets = extensions.filter((e) => TARGET_NAMES.includes(e.name) && e.id !== chrome.runtime.id);
 
-      if (!target) {
+      if (targets.length === 0) {
         selfReload();
         return;
       }
 
-      chrome.management.setEnabled(target.id, false, () => {
-        chrome.management.setEnabled(target.id, true, () => {
-          selfReload();
+      let remaining = targets.length;
+      targets.forEach((target) => {
+        chrome.management.setEnabled(target.id, false, () => {
+          chrome.management.setEnabled(target.id, true, () => {
+            if (--remaining === 0) selfReload();
+          });
         });
       });
     });
