@@ -12,3 +12,10 @@ export function writeText(text: string): void {
   document.execCommand('copy')
   el.remove()
 }
+
+export async function readText(): Promise<string> {
+  if (navigator.clipboard?.readText) {
+    return navigator.clipboard.readText()
+  }
+  return ''
+}

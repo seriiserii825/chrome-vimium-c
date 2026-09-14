@@ -61,6 +61,7 @@ st,showSeoHeadings,Show heading structure (h1/h2/h3),seo
 ie,inputEditStart,Focus input and place cursor at start,input
 ii,inputEdit,Focus input and place cursor at end,input
 ic,inputClearEdit,Clear and focus input or textarea,input
+ip,inputPaste,Paste clipboard text into input or textarea,input
 zw,zoomFitWindow,Reset zoom (fit to window),zoom
 zf,zoomFull,Zoom to 100%,zoom
 zi,zoomIn,Zoom in,zoom

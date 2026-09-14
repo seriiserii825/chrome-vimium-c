@@ -1,6 +1,6 @@
 import { showToast } from './toast'
 import { showImageInfo, getImageNames } from './imageinfo'
-import { writeText } from './clipboard'
+import { writeText, readText } from './clipboard'
 
 // Home-row first, then nearby keys for comfortable typing
 const CHARS = 'sadfjklewcpghnrtuoibvyxz'
@@ -87,7 +87,7 @@ export function generateLabels(n: number): string[] {
   return labels
 }
 
-export type HintMode = 'f' | 'F' | 'y' | 'yl' | 'yi' | 'ym' | 'ymi' | 'om' | 'ymf' | 'h' | 'di' | 'ci' | 'cs' | 'oI' | 'oV' | 'ii' | 'ip' | 'in' | 'ib' | 'ctc' | 'ctmc' | 'ie' | 'ic' | 'is' | 'c' | 'ygc' | 'ygo'
+export type HintMode = 'f' | 'F' | 'y' | 'yl' | 'yi' | 'ym' | 'ymi' | 'om' | 'ymf' | 'h' | 'di' | 'ci' | 'cs' | 'oI' | 'oV' | 'ii' | 'ip' | 'in' | 'ib' | 'ctc' | 'ctmc' | 'ie' | 'ic' | 'is' | 'pi' | 'c' | 'ygc' | 'ygo'
 
 export interface HintEntry {
   el: HTMLElement
@@ -319,7 +319,7 @@ export function beginHints(mode: HintMode, count = 1): HintSession | null {
   const rawElements: HTMLElement[] | Clickable[] =
     (mode === 'y' || mode === 'ym') ? getCopyable()
     : mode === 'yl' ? Array.from(document.querySelectorAll<HTMLElement>('a[href]')).filter(isVisible)
-    : (mode === 'yi' || mode === 'ymi' || mode === 'ie' || mode === 'ic' || mode === 'is' || mode === 'ygc' || mode === 'ygo') ? Array.from(document.querySelectorAll<HTMLElement>(
+    : (mode === 'yi' || mode === 'ymi' || mode === 'ie' || mode === 'ic' || mode === 'is' || mode === 'pi' || mode === 'ygc' || mode === 'ygo') ? Array.from(document.querySelectorAll<HTMLElement>(
         'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([disabled]), textarea:not([disabled])'
       )).filter(isVisible)
     : mode === 'cs' ? Array.from(document.querySelectorAll<HTMLElement>('svg')).filter(el => isVisible(el) && !el.parentElement?.closest('svg'))
@@ -628,6 +628,23 @@ function activate(entry: HintEntry, mode: HintMode, count = 1): void {
     el.value = ''
     el.dispatchEvent(new Event('input', { bubbles: true }))
     el.focus()
+  } else if (mode === 'pi') {
+    const el = entry.el as HTMLInputElement | HTMLTextAreaElement
+    el.focus()
+    // Native execCommand('paste') mirrors a real Ctrl+V and works where the async
+    // Clipboard API gets silently blocked (page permissions policy, focus timing).
+    if (document.execCommand('paste')) {
+      try { el.setSelectionRange(el.value.length, el.value.length) } catch { /* unsupported input type */ }
+    } else {
+      readText()
+        .then(text => {
+          if (!text) { showToast('Clipboard is empty'); return }
+          el.value = text
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+          try { el.setSelectionRange(el.value.length, el.value.length) } catch { /* unsupported input type */ }
+        })
+        .catch(() => showToast('Clipboard read failed'))
+    }
   } else if (mode === 'y') {
     const text = entry.el.innerText?.trim() || ''
     writeText(text)

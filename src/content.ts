@@ -94,6 +94,7 @@ type Action =
   | "inputEdit"
   | "inputClearEdit"
   | "inputEditStart"
+  | "inputPaste"
   | "zoomFitWindow"
   | "zoomFull"
   | "zoomIn"
@@ -291,6 +292,7 @@ const actions: Record<Action, () => void> = {
   inputEdit: () => { session = beginHints("ie"); },
   inputEditStart: () => { session = beginHints("is"); },
   inputClearEdit: () => { session = beginHints("ic"); },
+  inputPaste: () => { session = beginHints("pi"); },
   zoomFitWindow: () => {
     const contentWidth = Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth ?? 0);
     const ratio = contentWidth > 0 ? window.innerWidth / contentWidth : 1;
