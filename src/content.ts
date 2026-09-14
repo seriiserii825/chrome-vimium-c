@@ -66,6 +66,8 @@ type Action =
   | "yankText"
   | "yankLinkUrl"
   | "yankInputText"
+  | "yankGoogleMapsUrl"
+  | "openGoogleMapsUrl"
   | "yankMultiText"
   | "yankMultiInputText"
   | "openMultiLinks"
@@ -157,6 +159,12 @@ const actions: Record<Action, () => void> = {
   },
   yankInputText: () => {
     session = beginHints("yi");
+  },
+  yankGoogleMapsUrl: () => {
+    session = beginHints("ygc");
+  },
+  openGoogleMapsUrl: () => {
+    session = beginHints("ygo");
   },
   yankMultiText: () => {
     session = beginHints("ym");

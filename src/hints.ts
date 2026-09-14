@@ -87,7 +87,7 @@ export function generateLabels(n: number): string[] {
   return labels
 }
 
-export type HintMode = 'f' | 'F' | 'y' | 'yl' | 'yi' | 'ym' | 'ymi' | 'om' | 'ymf' | 'h' | 'di' | 'ci' | 'cs' | 'oI' | 'oV' | 'ii' | 'ip' | 'in' | 'ib' | 'ctc' | 'ctmc' | 'ie' | 'ic' | 'is' | 'c'
+export type HintMode = 'f' | 'F' | 'y' | 'yl' | 'yi' | 'ym' | 'ymi' | 'om' | 'ymf' | 'h' | 'di' | 'ci' | 'cs' | 'oI' | 'oV' | 'ii' | 'ip' | 'in' | 'ib' | 'ctc' | 'ctmc' | 'ie' | 'ic' | 'is' | 'c' | 'ygc' | 'ygo'
 
 export interface HintEntry {
   el: HTMLElement
@@ -319,7 +319,7 @@ export function beginHints(mode: HintMode, count = 1): HintSession | null {
   const rawElements: HTMLElement[] | Clickable[] =
     (mode === 'y' || mode === 'ym') ? getCopyable()
     : mode === 'yl' ? Array.from(document.querySelectorAll<HTMLElement>('a[href]')).filter(isVisible)
-    : (mode === 'yi' || mode === 'ymi' || mode === 'ie' || mode === 'ic' || mode === 'is') ? Array.from(document.querySelectorAll<HTMLElement>(
+    : (mode === 'yi' || mode === 'ymi' || mode === 'ie' || mode === 'ic' || mode === 'is' || mode === 'ygc' || mode === 'ygo') ? Array.from(document.querySelectorAll<HTMLElement>(
         'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([disabled]), textarea:not([disabled])'
       )).filter(isVisible)
     : mode === 'cs' ? Array.from(document.querySelectorAll<HTMLElement>('svg')).filter(el => isVisible(el) && !el.parentElement?.closest('svg'))
@@ -604,6 +604,17 @@ function activate(entry: HintEntry, mode: HintMode, count = 1): void {
     const text = el.value.trim() || (el as HTMLInputElement).placeholder?.trim() || ''
     writeText(text)
     showToast(text)
+  } else if (mode === 'ygc' || mode === 'ygo') {
+    const el = entry.el as HTMLInputElement | HTMLTextAreaElement
+    const address = el.value.trim() || (el as HTMLInputElement).placeholder?.trim() || ''
+    if (!address) { showToast('Input is empty', ''); return }
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+    if (mode === 'ygc') {
+      writeText(url)
+      showToast(url)
+    } else {
+      chrome.runtime.sendMessage({ type: 'navigateTo', url })
+    }
   } else if (mode === 'ie') {
     const el = entry.el as HTMLInputElement | HTMLTextAreaElement
     el.focus()
