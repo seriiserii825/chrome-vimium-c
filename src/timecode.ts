@@ -200,7 +200,7 @@ export function showTimecode(): void {
     searchRow.appendChild(playBtn)
     searchRow.appendChild(editBtn)
 
-    ;[...history].sort((a, b) => a.seconds - b.seconds).forEach((entry) => {
+    ;[...history].sort((a, b) => b.seconds - a.seconds).forEach((entry) => {
       const item = document.createElement('div')
       item.className = 'bs-timecode-hist-item'
       item.tabIndex = 0
