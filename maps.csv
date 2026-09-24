@@ -7,7 +7,7 @@ gg,scrollToTop,Scroll to top of page,scroll
 G,scrollToBottom,Scroll to bottom of page,scroll
 H,historyBack,Go back in history,history
 L,historyForward,Go forward in history,history
-gh,showHistory,Search browser history,history
+gh,showHistory,Search history (open in new tab),history
 f,followLink,Follow link or button (prefix count e.g. 3f to click N times),click
 F,followLinkNewTab,Follow link in new tab,click
 oml,openMultiLinks,Open multiple links,click

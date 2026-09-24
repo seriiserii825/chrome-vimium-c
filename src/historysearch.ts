@@ -9,7 +9,7 @@ let list: HTMLElement | null = null
 let allEntries: HistoryEntry[] = []
 let entries: HistoryEntry[] = []
 let selectedIndex = 0
-let onSelectCb: ((url: string, newTab: boolean) => void) | null = null
+let onSelectCb: ((url: string, sameTab: boolean) => void) | null = null
 
 // Subsequence fuzzy match: every char of query must appear in target, in order,
 // possibly with gaps (e.g. "sicuges" matches "sicurezza gestione"). Consecutive
@@ -147,7 +147,7 @@ function runFilter(query: string): void {
 
 export function showHistorySearch(
   historyEntries: HistoryEntry[],
-  onSelect: (url: string, newTab: boolean) => void,
+  onSelect: (url: string, sameTab: boolean) => void,
 ): void {
   if (backdrop) return
 

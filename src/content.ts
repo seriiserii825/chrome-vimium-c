@@ -217,9 +217,9 @@ const actions: Record<Action, () => void> = {
   showHistory: () => {
     chrome.runtime.sendMessage({ type: "searchHistory" }, (res) => {
       const items: HistoryEntry[] = res?.items ?? [];
-      showHistorySearch(items, (url, newTab) => {
-        if (newTab) chrome.runtime.sendMessage({ type: "navigateTo", url });
-        else window.location.href = url;
+      showHistorySearch(items, (url, sameTab) => {
+        if (sameTab) window.location.href = url;
+        else chrome.runtime.sendMessage({ type: "navigateTo", url });
       });
     });
   },
