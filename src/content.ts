@@ -78,6 +78,7 @@ type Action =
   | "showHelp"
   | "editUrlCurrentTab"
   | "editUrlNewTab"
+  | "yankUrlDomain"
   | "downloadImage"
   | "copyImage"
   | "copySvg"
@@ -201,6 +202,11 @@ const actions: Record<Action, () => void> = {
     showPrompt("Open URL in new tab", window.location.href, (url) => {
       chrome.runtime.sendMessage({ type: "navigateTo", url });
     });
+  },
+  yankUrlDomain: () => {
+    const domain = window.location.hostname;
+    writeText(domain);
+    showToast(domain);
   },
   scrollDown: () => {
     startScroll(1);

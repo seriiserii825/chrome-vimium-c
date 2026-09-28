@@ -34,6 +34,7 @@ In,copyImageName,Copy image name,image
 Ib,copyImageBasename,Copy image basename,image
 ue,editUrlCurrentTab,Edit URL and open,url
 uE,editUrlNewTab,Edit URL and open in new,url
+ud,yankUrlDomain,Copy URL domain,url
 gu,goUpUrl,Go one level up in URL,url
 gU,goRootUrl,Go to root URL,url
 ge,goExtensions,Go to chrome://extensions,url
