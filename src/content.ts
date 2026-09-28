@@ -25,6 +25,7 @@ import { showFind, hideFind, isFindVisible } from "./findinpage";
 import { applyBestQuality } from "./videoquality";
 import { physicalKey } from "./keycode";
 import { showToast } from "./toast";
+import { showWpPhp, hideWpPhp, isWpPhpVisible } from "./wpphp";
 import { writeText } from "./clipboard";
 import { startScroll, stopScroll, scrollToTop, scrollToBottom } from "./scroll";
 import mappings from "../maps.csv";
@@ -48,6 +49,7 @@ type Action =
   | "goExtensionShortcuts"
   | "goDownloads"
   | "goWpAdmin"
+  | "showWpPhp"
   | "yankPageId"
   | "historyBack"
   | "historyForward"
@@ -288,6 +290,7 @@ const actions: Record<Action, () => void> = {
   copyTableColumn: () => { session = beginHints("ctc"); },
   copyTableMultiColumn: () => { session = beginHints("ctmc"); },
   showSeoInfo: () => { showSeoInfo(); },
+  showWpPhp: () => { showWpPhp(); },
   showSeoHeadings: () => { showSeoHeadings(); },
   inputEdit: () => { session = beginHints("ie"); },
   inputEditStart: () => { session = beginHints("is"); },
@@ -422,6 +425,13 @@ document.addEventListener('focusin', (e) => {
 document.addEventListener(
   "keydown",
   (e: KeyboardEvent) => {
+    if (isWpPhpVisible()) {
+      if (e.key === "Escape" || e.key === "q") {
+        hideWpPhp();
+        e.preventDefault();
+      }
+      return;
+    }
     if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'NumLock', 'ScrollLock', 'AltGraph'].includes(e.key)) return;
 
     if (e.ctrlKey || e.metaKey) return;

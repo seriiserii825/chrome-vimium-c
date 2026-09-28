@@ -1,6 +1,6 @@
-export function writeText(text: string): void {
+export async function writeText(text: string): Promise<void> {
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(text)
+    await navigator.clipboard.writeText(text)
     return
   }
   const el = document.createElement('textarea')
@@ -9,8 +9,11 @@ export function writeText(text: string): void {
   document.body.appendChild(el)
   el.focus()
   el.select()
-  document.execCommand('copy')
-  el.remove()
+  try {
+    if (!document.execCommand('copy')) throw new Error('Could not copy text')
+  } finally {
+    el.remove()
+  }
 }
 
 export async function readText(): Promise<string> {
