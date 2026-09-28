@@ -41,6 +41,7 @@ ge,goExtensions,Go to chrome://extensions,url
 gk,goExtensionShortcuts,Go to extension shortcuts,url
 gd,goDownloads,Go to downloads,url
 wa,goWpAdmin,Go to WP admin edit page,url
+wl,goAdminLogin,Go to admin login (/gestione → /login → /wp-admin),url
 wp,showWpPhp,Show WordPress PHP version,url
 dc,deleteCookiesRefresh,Delete cookies for domain and refresh,url
 tg,goToTab,Switch to tab in current window,tab

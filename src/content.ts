@@ -49,6 +49,7 @@ type Action =
   | "goExtensionShortcuts"
   | "goDownloads"
   | "goWpAdmin"
+  | "goAdminLogin"
   | "showWpPhp"
   | "yankPageId"
   | "historyBack"
@@ -143,6 +144,36 @@ function extractPostIdFromUrl(): string | null {
 
 function extractWpPostId(): string | null {
   return extractPostIdFromBodyClass() ?? extractPostIdFromUrl();
+}
+
+const ADMIN_PATHS = ["/gestione", "/login", "/wp-admin"];
+
+async function adminPathExists(url: string): Promise<boolean> {
+  try {
+    // Don't follow redirects (e.g. /wp-admin → wp-login.php): a redirect already means the path exists
+    const res = await fetch(url, { method: "HEAD", redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(4000) });
+    if (res.type === "opaqueredirect") return true;
+    // 404 = not found, 5xx = server error → skip; everything else counts as "exists"
+    return res.status !== 404 && res.status < 500;
+  } catch {
+    return false;
+  }
+}
+
+async function goAdminLogin(): Promise<void> {
+  const { origin } = window.location;
+  showToast("Looking for admin…", "");
+  // Probe all paths in parallel, but respect priority order: go as soon as the
+  // highest-priority path is known to exist and all higher ones are known not to
+  const checks = ADMIN_PATHS.map((path) => adminPathExists(origin + path));
+  for (let i = 0; i < ADMIN_PATHS.length; i++) {
+    if (await checks[i]) {
+      window.location.href = origin + ADMIN_PATHS[i];
+      return;
+    }
+  }
+  // Nothing responded — fall back to the last path anyway
+  window.location.href = origin + ADMIN_PATHS[ADMIN_PATHS.length - 1];
 }
 
 const actions: Record<Action, () => void> = {
@@ -254,6 +285,7 @@ const actions: Record<Action, () => void> = {
     if (!postId) { showToast("WP post id not found", ""); return; }
     window.location.href = `${window.location.origin}/wp-admin/post.php?post=${postId}&action=edit`;
   },
+  goAdminLogin: () => { void goAdminLogin(); },
   yankPageId: () => {
     const bodyId = extractPostIdFromBodyClass();
     if (bodyId) { writeText(bodyId); showToast(bodyId); return; }
