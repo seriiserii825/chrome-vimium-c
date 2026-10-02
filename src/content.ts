@@ -249,7 +249,7 @@ const actions: Record<Action, () => void> = {
     showToast(path);
   },
   yankUrlDomain: () => {
-    const domain = window.location.hostname;
+    const domain = window.location.origin;
     writeText(domain);
     showToast(domain);
   },
