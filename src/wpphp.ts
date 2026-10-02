@@ -3,7 +3,7 @@ import { writeText } from './clipboard'
 let dismiss: (() => void) | null = null
 
 // Prefer the actual admin URL: WordPress may be installed in a subdirectory.
-export function siteHealthUrl(doc: Document, currentUrl: string): URL {
+export function wpAdminUrl(doc: Document, currentUrl: string, page: string): URL {
   const current = new URL(currentUrl)
   const candidates = [current.href, ...Array.from(doc.querySelectorAll<HTMLAnchorElement>(
     '#wpadminbar a[href], a[href*="/wp-admin/"]',
@@ -12,10 +12,14 @@ export function siteHealthUrl(doc: Document, currentUrl: string): URL {
     const url = new URL(candidate, current)
     const index = url.pathname.indexOf('/wp-admin/')
     if (url.origin === current.origin && index !== -1) {
-      return new URL(`${url.pathname.slice(0, index)}/wp-admin/site-health.php?tab=debug`, current.origin)
+      return new URL(`${url.pathname.slice(0, index)}/wp-admin/${page}`, current.origin)
     }
   }
-  return new URL('/wp-admin/site-health.php?tab=debug', current.origin)
+  return new URL(`/wp-admin/${page}`, current.origin)
+}
+
+export function siteHealthUrl(doc: Document, currentUrl: string): URL {
+  return wpAdminUrl(doc, currentUrl, 'site-health.php?tab=debug')
 }
 
 // WordPress's copy report uses stable field names, regardless of admin language.

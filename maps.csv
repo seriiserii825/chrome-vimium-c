@@ -34,6 +34,8 @@ In,copyImageName,Copy image name,image
 Ib,copyImageBasename,Copy image basename,image
 ue,editUrlCurrentTab,Edit URL and open,url
 uE,editUrlNewTab,Edit URL and open in new,url
+uc,yankUrl,Copy current URL,url
+up,yankUrlPath,Copy URL path without domain,url
 ud,yankUrlDomain,Copy URL domain,url
 gu,goUpUrl,Go one level up in URL,url
 gU,goRootUrl,Go to root URL,url
@@ -43,6 +45,7 @@ gd,goDownloads,Go to downloads,url
 wa,goWpAdmin,Go to WP admin edit page,url
 wl,goAdminLogin,Go to admin login (/gestione → /login → /wp-admin),url
 wp,showWpPhp,Show WordPress and PHP versions,url
+dw,toggleWpMigration,Toggle All-in-One WP Migration plugin,url
 dc,deleteCookiesRefresh,Delete cookies for domain and refresh,url
 tg,goToTab,Switch to tab in current window,tab
 N,prevTab,Switch to previous tab,tab

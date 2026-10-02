@@ -26,6 +26,7 @@ import { applyBestQuality } from "./videoquality";
 import { physicalKey } from "./keycode";
 import { showToast } from "./toast";
 import { showWpPhp, hideWpPhp, isWpPhpVisible } from "./wpphp";
+import { toggleWpMigration, resumeWpMigration } from "./wpmigration";
 import { writeText } from "./clipboard";
 import { startScroll, stopScroll, scrollToTop, scrollToBottom } from "./scroll";
 import mappings from "../maps.csv";
@@ -51,6 +52,7 @@ type Action =
   | "goWpAdmin"
   | "goAdminLogin"
   | "showWpPhp"
+  | "toggleWpMigration"
   | "yankPageId"
   | "historyBack"
   | "historyForward"
@@ -79,6 +81,8 @@ type Action =
   | "showHelp"
   | "editUrlCurrentTab"
   | "editUrlNewTab"
+  | "yankUrl"
+  | "yankUrlPath"
   | "yankUrlDomain"
   | "downloadImage"
   | "copyImage"
@@ -234,6 +238,16 @@ const actions: Record<Action, () => void> = {
       chrome.runtime.sendMessage({ type: "navigateTo", url });
     });
   },
+  yankUrl: () => {
+    const url = window.location.href;
+    writeText(url);
+    showToast(url);
+  },
+  yankUrlPath: () => {
+    const path = window.location.pathname;
+    writeText(path);
+    showToast(path);
+  },
   yankUrlDomain: () => {
     const domain = window.location.hostname;
     writeText(domain);
@@ -329,6 +343,7 @@ const actions: Record<Action, () => void> = {
   copyTableMultiColumn: () => { session = beginHints("ctmc"); },
   showSeoInfo: () => { showSeoInfo(); },
   showWpPhp: () => { showWpPhp(); },
+  toggleWpMigration: () => { toggleWpMigration(); },
   showSeoHeadings: () => { showSeoHeadings(); },
   inputEdit: () => { session = beginHints("ie"); },
   inputEditStart: () => { session = beginHints("is"); },
@@ -645,4 +660,5 @@ chrome.storage.local.get("reloadedToast", (res) => {
   }
 });
 
+resumeWpMigration();
 startTimecodeWatcher();
