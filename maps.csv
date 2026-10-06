@@ -37,6 +37,7 @@ uE,editUrlNewTab,Edit URL and open in new,url
 uc,yankUrl,Copy current URL,url
 up,yankUrlPath,Copy URL path without domain,url
 ud,yankUrlDomain,Copy URL domain,url
+un,yankUrlDomainName,Copy domain name (api.example.it → example),url
 gu,goUpUrl,Go one level up in URL,url
 gU,goRootUrl,Go to root URL,url
 ge,goExtensions,Go to chrome://extensions,url

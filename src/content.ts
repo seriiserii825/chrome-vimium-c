@@ -69,6 +69,7 @@ type Action =
   | "duplicateTab"
   | "newTab"
   | "openClipboardUrl"
+  | "yankUrlDomainName"
   | "closeTab"
   | "restoreTab"
   | "reloadTab"
@@ -169,6 +170,17 @@ async function adminPathExists(url: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+// Second-level parts that act as a TLD: "example.co.uk" → "example".
+const COMPOUND_TLD_PARTS = new Set(["co", "com", "net", "org", "gov", "edu", "ac"]);
+
+// Bare site name without subdomains and TLD: "api.bludelego.it" → "bludelego".
+function domainName(hostname: string): string {
+  const parts = hostname.split(".");
+  if (parts.length < 2 || /^\d+$/.test(parts[parts.length - 1])) return hostname;
+  const compound = parts.length > 2 && COMPOUND_TLD_PARTS.has(parts[parts.length - 2]);
+  return parts[parts.length - (compound ? 3 : 2)];
 }
 
 // Clipboard text as an http(s) URL; bare domains like "example.com/path" get https://.
@@ -282,6 +294,11 @@ const actions: Record<Action, () => void> = {
     const path = window.location.pathname;
     writeText(path);
     showToast(path);
+  },
+  yankUrlDomainName: () => {
+    const name = domainName(window.location.hostname);
+    writeText(name);
+    showToast(name);
   },
   yankUrlDomain: () => {
     const domain = window.location.origin;
