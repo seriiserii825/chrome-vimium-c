@@ -24,7 +24,7 @@ function focusSearch(): void {
 export function findInAccess(): void {
   if (isProjectsPage()) { focusSearch(); return }
   void chrome.storage.local.set({ [STORAGE_KEY]: Date.now() }).then(() => {
-    location.href = PROJECTS_URL
+    void chrome.runtime.sendMessage({ type: 'navigateTo', url: PROJECTS_URL })
   })
 }
 
