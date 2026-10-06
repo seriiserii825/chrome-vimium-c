@@ -46,7 +46,7 @@ wa,goWpAdmin,Go to WP admin edit page,url
 wl,goAdminLogin,Go to admin login (/gestione → /login → /wp-admin),url
 wp,showWpPhp,Show WordPress and PHP versions,url
 wtm,toggleWpMigration,Toggle All-in-One WP Migration plugin,url
-wnp,uploadWpPlugin,WordPress: open upload plugin form,url
+wnp,uploadWpPlugin,WordPress: upload plugin (form → choose zip),url
 wmb,makeWpBackup,WordPress: make All-in-One WP Migration backup,url
 wfa,findInAccess,Find project in access.bludelego.it,url
 dc,deleteCookiesRefresh,Delete cookies for domain and refresh,url
@@ -57,6 +57,7 @@ M,nextTab,Switch to next tab,tab
 <<,moveTabLeft,Move tab left,tab
 ty,duplicateTab,Duplicate current tab,tab
 tn,newTab,Open new tab,tab
+tb,openClipboardUrl,Open URL from clipboard in new tab,tab
 x,closeTab,Close current tab,tab
 X,restoreTab,Restore last closed tab,tab
 r,reloadTab,Reload current tab,tab

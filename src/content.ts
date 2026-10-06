@@ -27,10 +27,10 @@ import { physicalKey } from "./keycode";
 import { showToast } from "./toast";
 import { showWpPhp, hideWpPhp, isWpPhpVisible } from "./wpphp";
 import { toggleWpMigration, resumeWpMigration } from "./wpmigration";
-import { uploadWpPlugin } from "./wpnewplugin";
+import { uploadWpPlugin, resumeWpNewPlugin } from "./wpnewplugin";
 import { makeWpBackup, resumeWpBackup } from "./wpbackup";
 import { findInAccess, resumeAccessSearch } from "./accesssearch";
-import { writeText } from "./clipboard";
+import { writeText, readText } from "./clipboard";
 import { startScroll, stopScroll, scrollToTop, scrollToBottom } from "./scroll";
 import mappings from "../maps.csv";
 
@@ -68,6 +68,7 @@ type Action =
   | "moveTabLeft"
   | "duplicateTab"
   | "newTab"
+  | "openClipboardUrl"
   | "closeTab"
   | "restoreTab"
   | "reloadTab"
@@ -168,6 +169,34 @@ async function adminPathExists(url: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+// Clipboard text as an http(s) URL; bare domains like "example.com/path" get https://.
+function clipboardUrl(text: string): string | null {
+  const value = text.trim();
+  if (!value || /\s/.test(value)) return null;
+  const candidate = /^[a-z][a-z\d+.-]*:/i.test(value) ? value : `https://${value}`;
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    if (url.hostname !== "localhost" && !url.hostname.includes(".")) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+async function openClipboardUrl(): Promise<void> {
+  let text: string;
+  try {
+    text = await readText();
+  } catch {
+    showToast("Can't read clipboard", "");
+    return;
+  }
+  const url = clipboardUrl(text);
+  if (!url) { showToast("Clipboard is not a URL", ""); return; }
+  chrome.runtime.sendMessage({ type: "navigateTo", url });
 }
 
 async function goAdminLogin(): Promise<void> {
@@ -321,6 +350,7 @@ const actions: Record<Action, () => void> = {
   moveTabLeft:  () => { chrome.runtime.sendMessage({ type: "moveTabLeft" }) },
   duplicateTab:     () => { chrome.runtime.sendMessage({ type: "duplicateTab" }) },
   newTab:           () => { chrome.runtime.sendMessage({ type: "newTab" }) },
+  openClipboardUrl: () => { void openClipboardUrl(); },
   closeTab:         () => { chrome.runtime.sendMessage({ type: "closeTab" }) },
   restoreTab:       () => { chrome.runtime.sendMessage({ type: "restoreTab" }) },
   reloadTab:        () => { chrome.runtime.sendMessage({ type: "reloadTab" }) },
@@ -671,5 +701,6 @@ chrome.storage.local.get("reloadedToast", (res) => {
 
 resumeWpMigration();
 resumeWpBackup();
+resumeWpNewPlugin();
 resumeAccessSearch();
 startTimecodeWatcher();

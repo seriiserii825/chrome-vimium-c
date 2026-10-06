@@ -86,7 +86,7 @@ Escape calls `unhoverLast()` which reverses both.
 
 **Input focus** — `ie` focuses an input and places cursor at start; `ia` at end; `ic` clears and focuses. These use hint overlays to select the target input/textarea.
 
-**Build** — Vite handles `content.ts` (IIFE, with all CSS inlined). `background.ts` and `picker.ts` are built separately via esbuild in the `closeBundle` hook (Vite's Rollup pipeline can't produce MV3-compatible service workers or popup scripts directly). `manifest.json`, `picker.html`, and icons are copied as-is. `xr` hotkey sends `reloadExtension` to the background, which calls `chrome.runtime.reload()` to reload the extension without opening `chrome://extensions`.
+**Build** — Vite handles `content.ts` (IIFE, with all CSS inlined). `background.ts` and `picker.ts` are built separately via esbuild in the `closeBundle` hook (Vite's Rollup pipeline can't produce MV3-compatible service workers or popup scripts directly). `manifest.json`, `picker.html`, and icons are copied as-is. `er` hotkey sends `reloadExtension` to the background, which calls `chrome.runtime.reload()` to reload the extension without opening `chrome://extensions`.
 
 ## Source files
 
