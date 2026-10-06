@@ -45,7 +45,8 @@ gd,goDownloads,Go to downloads,url
 wa,goWpAdmin,Go to WP admin edit page,url
 wl,goAdminLogin,Go to admin login (/gestione → /login → /wp-admin),url
 wp,showWpPhp,Show WordPress and PHP versions,url
-dw,toggleWpMigration,Toggle All-in-One WP Migration plugin,url
+wtm,toggleWpMigration,Toggle All-in-One WP Migration plugin,url
+wnp,uploadWpPlugin,WordPress: upload new plugin (zip),url
 dc,deleteCookiesRefresh,Delete cookies for domain and refresh,url
 tg,goToTab,Switch to tab in current window,tab
 N,prevTab,Switch to previous tab,tab
