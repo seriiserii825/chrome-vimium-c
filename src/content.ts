@@ -29,6 +29,7 @@ import { showWpPhp, hideWpPhp, isWpPhpVisible } from "./wpphp";
 import { toggleWpMigration, resumeWpMigration } from "./wpmigration";
 import { uploadWpPlugin } from "./wpnewplugin";
 import { makeWpBackup, resumeWpBackup } from "./wpbackup";
+import { findInAccess, resumeAccessSearch } from "./accesssearch";
 import { writeText } from "./clipboard";
 import { startScroll, stopScroll, scrollToTop, scrollToBottom } from "./scroll";
 import mappings from "../maps.csv";
@@ -57,6 +58,7 @@ type Action =
   | "toggleWpMigration"
   | "uploadWpPlugin"
   | "makeWpBackup"
+  | "findInAccess"
   | "yankPageId"
   | "historyBack"
   | "historyForward"
@@ -350,6 +352,7 @@ const actions: Record<Action, () => void> = {
   toggleWpMigration: () => { toggleWpMigration(); },
   uploadWpPlugin: () => { uploadWpPlugin(); },
   makeWpBackup: () => { makeWpBackup(); },
+  findInAccess: () => { findInAccess(); },
   showSeoHeadings: () => { showSeoHeadings(); },
   inputEdit: () => { session = beginHints("ie"); },
   inputEditStart: () => { session = beginHints("is"); },
@@ -668,4 +671,5 @@ chrome.storage.local.get("reloadedToast", (res) => {
 
 resumeWpMigration();
 resumeWpBackup();
+resumeAccessSearch();
 startTimecodeWatcher();
