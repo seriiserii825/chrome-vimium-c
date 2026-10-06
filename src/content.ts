@@ -27,7 +27,8 @@ import { physicalKey } from "./keycode";
 import { showToast } from "./toast";
 import { showWpPhp, hideWpPhp, isWpPhpVisible } from "./wpphp";
 import { toggleWpMigration, resumeWpMigration } from "./wpmigration";
-import { uploadWpPlugin, resumeWpNewPlugin } from "./wpnewplugin";
+import { uploadWpPlugin } from "./wpnewplugin";
+import { makeWpBackup, resumeWpBackup } from "./wpbackup";
 import { writeText } from "./clipboard";
 import { startScroll, stopScroll, scrollToTop, scrollToBottom } from "./scroll";
 import mappings from "../maps.csv";
@@ -55,6 +56,7 @@ type Action =
   | "showWpPhp"
   | "toggleWpMigration"
   | "uploadWpPlugin"
+  | "makeWpBackup"
   | "yankPageId"
   | "historyBack"
   | "historyForward"
@@ -347,6 +349,7 @@ const actions: Record<Action, () => void> = {
   showWpPhp: () => { showWpPhp(); },
   toggleWpMigration: () => { toggleWpMigration(); },
   uploadWpPlugin: () => { uploadWpPlugin(); },
+  makeWpBackup: () => { makeWpBackup(); },
   showSeoHeadings: () => { showSeoHeadings(); },
   inputEdit: () => { session = beginHints("ie"); },
   inputEditStart: () => { session = beginHints("is"); },
@@ -664,5 +667,5 @@ chrome.storage.local.get("reloadedToast", (res) => {
 });
 
 resumeWpMigration();
-resumeWpNewPlugin();
+resumeWpBackup();
 startTimecodeWatcher();
