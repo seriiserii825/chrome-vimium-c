@@ -22,6 +22,8 @@ ygo,openGoogleMapsUrl,Open Google Maps URL for address in input in new,copy
 ymv,yankMultiText,Copy multiple elements,copy
 ymi,yankMultiInputText,Copy multiple input texts,copy
 yp,yankPageId,Copy WordPress page/post ID,copy
+hci,copyInnerHtml,Copy inner HTML of element,copy
+hco,copyOuterHtml,Copy outer HTML of element,copy
 Tc,copyTableColumn,Copy table column,copy
 Tmc,copyTableMultiColumn,Copy multiple table columns,copy
 Sc,copySvg,Copy SVG code to clipboard,svg

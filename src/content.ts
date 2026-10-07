@@ -78,6 +78,8 @@ type Action =
   | "closeTabsRight"
   | "closeTabsOthers"
   | "yankText"
+  | "copyInnerHtml"
+  | "copyOuterHtml"
   | "yankLinkUrl"
   | "yankInputText"
   | "yankGoogleMapsUrl"
@@ -253,6 +255,12 @@ const actions: Record<Action, () => void> = {
   },
   yankText: () => {
     session = beginHints("y");
+  },
+  copyInnerHtml: () => {
+    session = beginHints("hci");
+  },
+  copyOuterHtml: () => {
+    session = beginHints("hco");
   },
   yankLinkUrl: () => {
     session = beginHints("yl");

@@ -87,7 +87,7 @@ export function generateLabels(n: number): string[] {
   return labels
 }
 
-export type HintMode = 'f' | 'F' | 'y' | 'yl' | 'yi' | 'ym' | 'ymi' | 'om' | 'ymf' | 'h' | 'di' | 'ci' | 'cs' | 'oI' | 'oV' | 'ii' | 'ip' | 'in' | 'ib' | 'ctc' | 'ctmc' | 'ie' | 'ic' | 'is' | 'pi' | 'c' | 'ygc' | 'ygo'
+export type HintMode = 'f' | 'F' | 'y' | 'yl' | 'yi' | 'ym' | 'ymi' | 'om' | 'ymf' | 'h' | 'di' | 'ci' | 'cs' | 'oI' | 'oV' | 'ii' | 'ip' | 'in' | 'ib' | 'ctc' | 'ctmc' | 'ie' | 'ic' | 'is' | 'pi' | 'c' | 'ygc' | 'ygo' | 'hci' | 'hco'
 
 export interface HintEntry {
   el: HTMLElement
@@ -317,7 +317,7 @@ function getLinksAndButtons(): Clickable[] {
 
 export function beginHints(mode: HintMode, count = 1): HintSession | null {
   const rawElements: HTMLElement[] | Clickable[] =
-    (mode === 'y' || mode === 'ym') ? getCopyable()
+    (mode === 'y' || mode === 'ym' || mode === 'hci' || mode === 'hco') ? getCopyable()
     : mode === 'yl' ? Array.from(document.querySelectorAll<HTMLElement>('a[href]')).filter(isVisible)
     : (mode === 'yi' || mode === 'ymi' || mode === 'ie' || mode === 'ic' || mode === 'is' || mode === 'pi' || mode === 'ygc' || mode === 'ygo') ? Array.from(document.querySelectorAll<HTMLElement>(
         'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([disabled]), textarea:not([disabled])'
@@ -649,6 +649,10 @@ function activate(entry: HintEntry, mode: HintMode, count = 1): void {
     const text = entry.el.innerText?.trim() || ''
     writeText(text)
     showToast(text)
+  } else if (mode === 'hci' || mode === 'hco') {
+    const html = mode === 'hci' ? entry.el.innerHTML : entry.el.outerHTML
+    writeText(html)
+    showToast(mode === 'hci' ? 'Inner HTML copied' : 'Outer HTML copied')
   } else if (mode === 'F') {
     const anchor = entry.el instanceof HTMLAnchorElement ? entry.el : entry.el.closest('a[href]')
     if (anchor instanceof HTMLAnchorElement && anchor.href) {
