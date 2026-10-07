@@ -1,3 +1,6 @@
+import { readText } from './clipboard'
+import { showToast } from './toast'
+
 const PROJECTS_URL = 'https://access.bludelego.it/project'
 const INPUT_ID = 'search-project-url-input'
 // chrome.storage, not sessionStorage: the request has to cross origins.
@@ -11,11 +14,31 @@ function isProjectsPage(): boolean {
   return location.origin + location.pathname.replace(/\/$/, '') === PROJECTS_URL
 }
 
+// Paste the clipboard into the search input, then blur it so page hotkeys keep working.
+async function pasteIntoSearch(input: HTMLInputElement): Promise<void> {
+  input.focus()
+  input.select()
+  // Native paste fires the page's own input handlers like a real Ctrl+V.
+  if (!document.execCommand('paste')) {
+    try {
+      const text = await readText()
+      if (!text) { showToast('Clipboard is empty', ''); return }
+      input.value = text
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    } catch {
+      showToast('Clipboard read failed', '')
+      return
+    }
+  }
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  input.blur()
+}
+
 function focusSearch(): void {
   const deadline = Date.now() + WAIT_MS
   const tryFocus = (): void => {
     const input = document.getElementById(INPUT_ID) as HTMLInputElement | null
-    if (input) { input.focus(); input.select(); return }
+    if (input) { void pasteIntoSearch(input); return }
     if (Date.now() < deadline) setTimeout(tryFocus, 100)
   }
   tryFocus()
