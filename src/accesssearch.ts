@@ -14,7 +14,7 @@ function isProjectsPage(): boolean {
   return location.origin + location.pathname.replace(/\/$/, '') === PROJECTS_URL
 }
 
-// Paste the clipboard into the search input, then blur it so page hotkeys keep working.
+// Paste the clipboard into the search input, leaving it focused with the cursor at the end.
 async function pasteIntoSearch(input: HTMLInputElement): Promise<void> {
   input.focus()
   input.select()
@@ -31,7 +31,8 @@ async function pasteIntoSearch(input: HTMLInputElement): Promise<void> {
     }
   }
   input.dispatchEvent(new Event('change', { bubbles: true }))
-  input.blur()
+  input.focus()
+  try { input.setSelectionRange(input.value.length, input.value.length) } catch { /* unsupported input type */ }
 }
 
 function focusSearch(): void {
