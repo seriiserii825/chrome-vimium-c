@@ -56,6 +56,7 @@ type Action =
   | "goAdminLogin"
   | "showWpPhp"
   | "toggleWpMigration"
+  | "copyWpThemeName"
   | "uploadWpPlugin"
   | "makeWpBackup"
   | "findInAccess"
@@ -156,6 +157,19 @@ function extractPostIdFromUrl(): string | null {
 
 function extractWpPostId(): string | null {
   return extractPostIdFromBodyClass() ?? extractPostIdFromUrl();
+}
+
+function extractWpThemeName(): string | null {
+  const elements = document.querySelectorAll<HTMLLinkElement | HTMLScriptElement | HTMLImageElement>(
+    "link[href*='/wp-content/themes/'], script[src*='/wp-content/themes/'], img[src*='/wp-content/themes/']",
+  );
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i];
+    const url = (el as HTMLLinkElement).href || (el as HTMLScriptElement | HTMLImageElement).src;
+    const match = url.match(/\/wp-content\/themes\/([^/]+)\//);
+    if (match) return match[1];
+  }
+  return null;
 }
 
 const ADMIN_PATHS = ["/gestione", "/login", "/wp-admin"];
@@ -397,6 +411,12 @@ const actions: Record<Action, () => void> = {
   showSeoInfo: () => { showSeoInfo(); },
   showWpPhp: () => { showWpPhp(); },
   toggleWpMigration: () => { toggleWpMigration(); },
+  copyWpThemeName: () => {
+    const theme = extractWpThemeName();
+    if (!theme) { showToast("WP theme not found", ""); return; }
+    writeText(theme);
+    showToast(theme);
+  },
   uploadWpPlugin: () => { uploadWpPlugin(); },
   makeWpBackup: () => { makeWpBackup(); },
   findInAccess: () => { findInAccess(); },

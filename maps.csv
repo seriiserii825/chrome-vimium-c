@@ -47,6 +47,7 @@ wa,goWpAdmin,Go to WP admin edit page,url
 wl,goAdminLogin,Go to admin login (/gestione → /login → /wp-admin),url
 wp,showWpPhp,Show WordPress and PHP versions,url
 wtm,toggleWpMigration,Toggle All-in-One WP Migration plugin,url
+wtc,copyWpThemeName,Copy WordPress theme folder name,url
 wnp,uploadWpPlugin,WordPress: upload plugin (form → choose zip),url
 wmb,makeWpBackup,WordPress: make All-in-One WP Migration backup,url
 wfa,findInAccess,Find project in access.bludelego.it,url
