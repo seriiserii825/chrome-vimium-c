@@ -92,5 +92,6 @@ vs,saveTimecode,Save current video position as timecode,timecode
 ve,exportTimecodes,Export all timecodes to JSON file,timecode
 vi,importTimecodes,Import timecodes from JSON file,timecode
 /,findInPage,Find in page,find
+if,findInFields,Find text in input/textarea/select (Enter next; Esc jumps to field),find
 ?,showHelp,Show keyboard shortcuts,dev
 er,reloadExtension,Reload extension,dev

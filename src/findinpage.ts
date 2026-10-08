@@ -5,6 +5,70 @@ let marks: HTMLElement[] = []
 let currentIndex = -1
 let lastQuery = ''
 
+// Field mode (`if`): searches values of input/textarea/select instead of page text.
+// Fields can't contain <mark>, so matches are outlined and the current one gets
+// focus + selection when the bar closes.
+type FieldMatch = { el: HTMLElement; start: number; end: number }
+let mode: 'page' | 'fields' = 'page'
+let fieldMatches: FieldMatch[] = []
+let lastFieldQuery = ''
+
+const SKIP_INPUT_TYPES = new Set(['hidden', 'checkbox', 'radio', 'file', 'image', 'submit', 'button', 'reset', 'color', 'range'])
+
+function collectFields(): HTMLElement[] {
+  const all = document.querySelectorAll<HTMLElement>('input, textarea, select')
+  return Array.from(all).filter((el) => {
+    if (el.closest('#bs-find-bar')) return false
+    if (el instanceof HTMLInputElement && SKIP_INPUT_TYPES.has(el.type)) return false
+    return el.getClientRects().length > 0 && isVisible(el)
+  })
+}
+
+function clearFieldMatches(): void {
+  for (const m of fieldMatches) m.el.classList.remove('bs-find-field', 'bs-find-field-current')
+  fieldMatches = []
+  currentIndex = -1
+}
+
+function highlightFields(query: string): void {
+  clearFieldMatches()
+  if (!query) { updateCounter(); return }
+  const q = query.toLowerCase()
+
+  for (const el of collectFields()) {
+    if (el instanceof HTMLSelectElement) {
+      // One match per matching option; selecting it would change form data, so only focus the select
+      for (const opt of Array.from(el.options)) {
+        if (opt.text.toLowerCase().includes(q)) fieldMatches.push({ el, start: 0, end: 0 })
+      }
+      continue
+    }
+    const lower = (el as HTMLInputElement | HTMLTextAreaElement).value.toLowerCase()
+    let idx = lower.indexOf(q)
+    while (idx !== -1) {
+      fieldMatches.push({ el, start: idx, end: idx + q.length })
+      idx = lower.indexOf(q, idx + q.length)
+    }
+  }
+
+  for (const m of fieldMatches) m.el.classList.add('bs-find-field')
+  if (fieldMatches.length > 0) {
+    currentIndex = 0
+    focusFieldMatch(0)
+  }
+  updateCounter()
+}
+
+function focusFieldMatch(index: number): void {
+  const cur = fieldMatches[index]
+  for (const m of fieldMatches) m.el.classList.toggle('bs-find-field-current', m.el === cur?.el)
+  cur?.el.scrollIntoView({ block: 'center', inline: 'nearest' })
+}
+
+function matchCount(): number {
+  return mode === 'fields' ? fieldMatches.length : marks.length
+}
+
 function isVisible(el: Element): boolean {
   const style = getComputedStyle(el)
   return style.display !== 'none' && style.visibility !== 'hidden'
@@ -43,7 +107,8 @@ function collectTextNodes(): Text[] {
 
 function updateCounter(): void {
   if (!counter) return
-  counter.textContent = marks.length === 0 ? '0/0' : `${currentIndex + 1}/${marks.length}`
+  const total = matchCount()
+  counter.textContent = total === 0 ? '0/0' : `${currentIndex + 1}/${total}`
 }
 
 function focusMark(index: number): void {
@@ -88,21 +153,23 @@ function highlight(query: string): void {
   updateCounter()
 }
 
-function nextMatch(): void {
-  if (marks.length === 0) return
-  currentIndex = (currentIndex + 1) % marks.length
-  focusMark(currentIndex)
+function step(delta: 1 | -1): void {
+  const total = matchCount()
+  if (total === 0) return
+  currentIndex = (currentIndex + delta + total) % total
+  if (mode === 'fields') focusFieldMatch(currentIndex)
+  else focusMark(currentIndex)
   updateCounter()
 }
 
-function prevMatch(): void {
-  if (marks.length === 0) return
-  currentIndex = (currentIndex - 1 + marks.length) % marks.length
-  focusMark(currentIndex)
-  updateCounter()
+function runSearch(query: string): void {
+  if (mode === 'fields') highlightFields(query)
+  else highlight(query)
 }
 
-export function showFind(): void {
+export function showFind(newMode: 'page' | 'fields' = 'page'): void {
+  if (bar && mode !== newMode) hideFind(false)
+  mode = newMode
   if (bar) {
     input?.focus()
     input?.select()
@@ -116,23 +183,23 @@ export function showFind(): void {
   input.id = 'bs-find-input'
   input.type = 'text'
   input.spellcheck = false
-  input.placeholder = 'Find in page...'
-  input.value = lastQuery
+  input.placeholder = mode === 'fields' ? 'Find in inputs...' : 'Find in page...'
+  input.value = mode === 'fields' ? lastFieldQuery : lastQuery
 
   counter = document.createElement('span')
   counter.id = 'bs-find-counter'
 
   input.addEventListener('input', () => {
-    lastQuery = input!.value
-    highlight(lastQuery)
+    if (mode === 'fields') lastFieldQuery = input!.value
+    else lastQuery = input!.value
+    runSearch(input!.value)
   })
 
   input.addEventListener('keydown', (e) => {
     e.stopPropagation()
     if (e.key === 'Enter') {
       e.preventDefault()
-      if (e.shiftKey) prevMatch()
-      else nextMatch()
+      step(e.shiftKey ? -1 : 1)
     }
   })
 
@@ -145,16 +212,25 @@ export function showFind(): void {
     input?.select()
   })
 
-  if (lastQuery) highlight(lastQuery)
+  if (input.value) runSearch(input.value)
   else updateCounter()
 }
 
-export function hideFind(): void {
+// In field mode, closing the bar jumps into the current matched field
+export function hideFind(focusField = true): void {
+  const cur = mode === 'fields' ? fieldMatches[currentIndex] : undefined
   bar?.remove()
   bar = null
   input = null
   counter = null
   clearMarks()
+  clearFieldMatches()
+  if (focusField && cur) {
+    cur.el.focus()
+    if (!(cur.el instanceof HTMLSelectElement)) {
+      try { (cur.el as HTMLInputElement).setSelectionRange(cur.start, cur.end) } catch { /* email/number inputs */ }
+    }
+  }
 }
 
 export function isFindVisible(): boolean {

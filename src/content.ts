@@ -133,6 +133,7 @@ type Action =
   | "openVideoNewTab"
   | "showHistory"
   | "findInPage"
+  | "findInFields"
   | "reloadExtension";
 
 function extractPostIdFromBodyClass(): string | null {
@@ -353,6 +354,7 @@ const actions: Record<Action, () => void> = {
     });
   },
   findInPage: () => { showFind(); },
+  findInFields: () => { showFind("fields"); },
   scrollToTop: scrollToTop,
   scrollToBottom: scrollToBottom,
   saveScrollPos: saveScrollPos,

@@ -46,3 +46,12 @@
 .bs-find-mark.bs-find-current {
   background: #fab387;
 }
+
+.bs-find-field {
+  outline: 2px solid #f9e2af !important;
+  outline-offset: 1px !important;
+}
+
+.bs-find-field.bs-find-field-current {
+  outline: 3px solid #fab387 !important;
+}
