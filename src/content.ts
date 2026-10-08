@@ -31,7 +31,7 @@ import { uploadWpPlugin, resumeWpNewPlugin } from "./wpnewplugin";
 import { makeWpBackup, resumeWpBackup } from "./wpbackup";
 import { findInAccess, resumeAccessSearch } from "./accesssearch";
 import { writeText, readText } from "./clipboard";
-import { startScroll, stopScroll, scrollToTop, scrollToBottom } from "./scroll";
+import { startScroll, stopScroll, scrollToTop, scrollToBottom, saveScrollPos, goScrollPos } from "./scroll";
 import mappings from "../maps.csv";
 
 let session: HintSession | null = null;
@@ -47,6 +47,8 @@ type Action =
   | "slowScrollUp"
   | "scrollToTop"
   | "scrollToBottom"
+  | "saveScrollPos"
+  | "goScrollPos"
   | "goUpUrl"
   | "goRootUrl"
   | "goExtensions"
@@ -353,6 +355,8 @@ const actions: Record<Action, () => void> = {
   findInPage: () => { showFind(); },
   scrollToTop: scrollToTop,
   scrollToBottom: scrollToBottom,
+  saveScrollPos: saveScrollPos,
+  goScrollPos: goScrollPos,
   goUpUrl: () => {
     const url = new URL(window.location.href);
     const path = url.pathname.replace(/\/$/, "");

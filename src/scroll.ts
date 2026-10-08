@@ -1,3 +1,5 @@
+import { showToast } from "./toast";
+
 const VELOCITY = 1500; // px/s while key held
 const SLOW_VELOCITY = 300; // px/s for slow scroll (J/K)
 const DECEL = 15000; // px/s² linear deceleration after keyup (~100ms coast)
@@ -31,6 +33,31 @@ export function scrollToBottom(): void {
   active = false;
   if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
   window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+}
+
+// Not keyed by URL: one slot per origin (localStorage is per-origin)
+const SCROLL_POS_KEY = "bs-scroll-pos";
+
+export function saveScrollPos(): void {
+  try {
+    localStorage.setItem(SCROLL_POS_KEY, JSON.stringify({ x: window.scrollX, y: window.scrollY }));
+    showToast(`Scroll position saved (${Math.round(window.scrollY)}px)`, "");
+  } catch {
+    showToast("Can't save scroll position", "");
+  }
+}
+
+export function goScrollPos(): void {
+  let pos: { x: number; y: number } | null = null;
+  try {
+    const raw = localStorage.getItem(SCROLL_POS_KEY);
+    if (raw) pos = JSON.parse(raw) as { x: number; y: number };
+  } catch { /* ignore */ }
+  if (!pos) { showToast("No saved scroll position", ""); return; }
+  vel = 0;
+  active = false;
+  if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+  window.scrollTo({ left: pos.x, top: pos.y, behavior: "instant" });
 }
 
 function tick(now: number): void {
