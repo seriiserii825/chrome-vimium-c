@@ -87,6 +87,7 @@ vd,speedDown,Speed down video (-0.25),video
 vq,videoQuality,Set video quality,video
 vf,videoFullscreen,Toggle video fullscreen,video
 vo,openVideoNewTab,Open video in new tab,video
+vy,yankVideoUrl,Copy YouTube video URL without playlist,video
 vc,seekTimecode,Go to video timecode (HH:MM:SS),timecode
 vs,saveTimecode,Save current video position as timecode,timecode
 ve,exportTimecodes,Export all timecodes to JSON file,timecode

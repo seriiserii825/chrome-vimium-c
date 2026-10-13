@@ -131,6 +131,7 @@ type Action =
   | "videoQuality"
   | "videoFullscreen"
   | "openVideoNewTab"
+  | "yankVideoUrl"
   | "showHistory"
   | "findInPage"
   | "findInFields"
@@ -478,6 +479,13 @@ const actions: Record<Action, () => void> = {
     btn?.click()
   },
   openVideoNewTab: () => { session = beginHints("oV"); },
+  yankVideoUrl: () => {
+    const id = new URLSearchParams(window.location.search).get("v");
+    if (!id) { showToast("No YouTube video ID in URL"); return; }
+    const url = `https://www.youtube.com/watch?v=${id}`;
+    writeText(url);
+    showToast(url);
+  },
   deleteCookiesRefresh: () => {
     chrome.runtime.sendMessage({ type: "getCookies", url: window.location.href }, (res) => {
       showCookieConfirm(window.location.href, res?.cookies ?? []);
