@@ -599,9 +599,13 @@ document.addEventListener(
     }
     if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'NumLock', 'ScrollLock', 'AltGraph'].includes(e.key)) return;
 
-    if (e.ctrlKey || e.metaKey) return;
+    // Ctrl+[ (как в vim) отменяет labels — Escape может перехватить страница (закрыть popup)
+    const ctrlBracket = e.ctrlKey && !e.altKey && !e.metaKey && e.code === 'BracketLeft'
+      && (session !== null || tabSession !== null || winSession !== null);
 
-    const key = physicalKey(e);
+    if ((e.ctrlKey || e.metaKey) && !ctrlBracket) return;
+
+    const key = ctrlBracket ? 'Escape' : physicalKey(e);
 
     if (e.altKey) {
       const action = altKeyMap.get(key);
