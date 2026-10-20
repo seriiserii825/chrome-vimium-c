@@ -15,5 +15,5 @@ export function showToast(message: string, prefix = 'Copied: '): void {
   setTimeout(() => {
     toast.classList.remove("bs-vimium-toast-visible");
     toast.addEventListener("transitionend", () => toast.remove(), { once: true });
-  }, 2500);
+  }, 5000);
 }

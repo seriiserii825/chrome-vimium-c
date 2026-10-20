@@ -259,16 +259,16 @@ function setFieldValue(el: TextField, value: string): void {
 
 async function pasteIntoColumn(field: TextField): Promise<void> {
   let text: string
-  try { text = await readText() } catch { showToast('Clipboard read failed'); return }
+  try { text = await readText() } catch { showToast('Clipboard read failed', ''); return }
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l)
-  if (lines.length === 0) { showToast('Clipboard is empty'); return }
+  if (lines.length === 0) { showToast('Clipboard is empty', ''); return }
   const inputs = getColumnInputs(field)
   if (lines.length !== inputs.length) {
-    showToast(`Mismatch: ${lines.length} lines in clipboard, ${inputs.length} rows in column`)
+    showToast(`Mismatch: ${lines.length} lines in clipboard, ${inputs.length} rows in column`, '')
     return
   }
   inputs.forEach((el, i) => setFieldValue(el, lines[i]))
-  showToast(`Pasted ${lines.length} rows`)
+  showToast(`Pasted ${lines.length} rows`, '')
 }
 
 function getHoverable(): HTMLElement[] {
