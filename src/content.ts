@@ -88,6 +88,9 @@ type Action =
   | "openGoogleMapsUrl"
   | "yankMultiText"
   | "yankMultiInputText"
+  | "yankMultiLinkUrl"
+  | "yankRangeText"
+  | "yankRangeLinkUrl"
   | "openMultiLinks"
   | "followMultiClick"
   | "hoverElement"
@@ -110,6 +113,7 @@ type Action =
   | "copyImageBasename"
   | "copyTableColumn"
   | "copyTableMultiColumn"
+  | "pasteTableColumn"
   | "showSeoInfo"
   | "showSeoHeadings"
   | "inputEdit"
@@ -284,6 +288,15 @@ const actions: Record<Action, () => void> = {
   yankMultiInputText: () => {
     session = beginHints("ymi");
   },
+  yankMultiLinkUrl: () => {
+    session = beginHints("yml");
+  },
+  yankRangeText: () => {
+    session = beginHints("ydv");
+  },
+  yankRangeLinkUrl: () => {
+    session = beginHints("ydl");
+  },
   openMultiLinks: () => {
     session = beginHints("om");
   },
@@ -423,6 +436,7 @@ const actions: Record<Action, () => void> = {
   },
   copyTableColumn: () => { session = beginHints("ctc"); },
   copyTableMultiColumn: () => { session = beginHints("ctmc"); },
+  pasteTableColumn: () => { session = beginHints("ptc"); },
   showSeoInfo: () => { showSeoInfo(); },
   showWpPhp: () => { showWpPhp(); },
   toggleWpMigration: () => { toggleWpMigration(); },

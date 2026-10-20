@@ -87,7 +87,7 @@ export function generateLabels(n: number): string[] {
   return labels
 }
 
-export type HintMode = 'f' | 'F' | 'y' | 'yl' | 'yi' | 'ym' | 'ymi' | 'om' | 'ymf' | 'h' | 'di' | 'ci' | 'cs' | 'oI' | 'oV' | 'ii' | 'ip' | 'in' | 'ib' | 'ctc' | 'ctmc' | 'ie' | 'ic' | 'is' | 'pi' | 'c' | 'ygc' | 'ygo' | 'hci' | 'hco'
+export type HintMode = 'f' | 'F' | 'y' | 'yl' | 'yi' | 'ym' | 'ymi' | 'yml' | 'ydv' | 'ydl' | 'om' | 'ymf' | 'h' | 'di' | 'ci' | 'cs' | 'oI' | 'oV' | 'ii' | 'ip' | 'in' | 'ib' | 'ctc' | 'ctmc' | 'ie' | 'ic' | 'is' | 'pi' | 'ptc' | 'c' | 'ygc' | 'ygo' | 'hci' | 'hco'
 
 export interface HintEntry {
   el: HTMLElement
@@ -103,6 +103,7 @@ export interface HintSession {
   container: HTMLElement
   collected?: string[]
   collectedEntries?: HintEntry[]
+  rangeStart?: number
   count: number
 }
 
@@ -224,6 +225,52 @@ function getColumnText(cell: HTMLTableCellElement): string {
     .join('\n')
 }
 
+type TextField = HTMLInputElement | HTMLTextAreaElement
+
+// Inputs in the same "column" as `field`, top to bottom. ACF repeaters lay fields out as
+// divs inside one <td>, so a column there is the same data-key across the repeater's rows;
+// otherwise it's the same cellIndex across a plain table's rows.
+function getColumnInputs(field: TextField): TextField[] {
+  const inputSel = 'input:not([type="hidden"]), textarea'
+  const acfField = field.closest<HTMLElement>('.acf-field[data-key]')
+  const acfRow = acfField?.closest('tr.acf-row')
+  if (acfField && acfRow?.parentElement) {
+    const key = acfField.dataset.key
+    return Array.from(acfRow.parentElement.children)
+      .filter(row => row.matches('tr.acf-row:not(.acf-clone)'))
+      .map(row => row.querySelector(`:scope > td > .acf-field[data-key="${key}"]`)?.querySelector<TextField>(inputSel) ?? null)
+      .filter((el): el is TextField => el !== null)
+  }
+  const cell = field.closest('td, th') as HTMLTableCellElement | null
+  const table = cell?.closest('table')
+  if (cell && table) {
+    return Array.from(table.rows)
+      .map(row => row.cells[cell.cellIndex]?.querySelector<TextField>(inputSel) ?? null)
+      .filter((el): el is TextField => el !== null)
+  }
+  return [field]
+}
+
+function setFieldValue(el: TextField, value: string): void {
+  el.value = value
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+  el.dispatchEvent(new Event('change', { bubbles: true }))
+}
+
+async function pasteIntoColumn(field: TextField): Promise<void> {
+  let text: string
+  try { text = await readText() } catch { showToast('Clipboard read failed'); return }
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l)
+  if (lines.length === 0) { showToast('Clipboard is empty'); return }
+  const inputs = getColumnInputs(field)
+  if (lines.length !== inputs.length) {
+    showToast(`Mismatch: ${lines.length} lines in clipboard, ${inputs.length} rows in column`)
+    return
+  }
+  inputs.forEach((el, i) => setFieldValue(el, lines[i]))
+  showToast(`Pasted ${lines.length} rows`)
+}
+
 function getHoverable(): HTMLElement[] {
   const isCandidate = (el: HTMLElement) => isVisible(el) && !el.closest('svg')
 
@@ -317,9 +364,9 @@ function getLinksAndButtons(): Clickable[] {
 
 export function beginHints(mode: HintMode, count = 1): HintSession | null {
   const rawElements: HTMLElement[] | Clickable[] =
-    (mode === 'y' || mode === 'ym' || mode === 'hci' || mode === 'hco') ? getCopyable()
-    : mode === 'yl' ? Array.from(document.querySelectorAll<HTMLElement>('a[href]')).filter(isVisible)
-    : (mode === 'yi' || mode === 'ymi' || mode === 'ie' || mode === 'ic' || mode === 'is' || mode === 'pi' || mode === 'ygc' || mode === 'ygo') ? Array.from(document.querySelectorAll<HTMLElement>(
+    (mode === 'y' || mode === 'ym' || mode === 'ydv' || mode === 'hci' || mode === 'hco') ? getCopyable()
+    : (mode === 'yl' || mode === 'yml' || mode === 'ydl') ? Array.from(document.querySelectorAll<HTMLElement>('a[href]')).filter(isVisible)
+    : (mode === 'yi' || mode === 'ymi' || mode === 'ie' || mode === 'ic' || mode === 'is' || mode === 'pi' || mode === 'ptc' || mode === 'ygc' || mode === 'ygo') ? Array.from(document.querySelectorAll<HTMLElement>(
         'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([disabled]), textarea:not([disabled])'
       )).filter(isVisible)
     : mode === 'cs' ? Array.from(document.querySelectorAll<HTMLElement>('svg')).filter(el => isVisible(el) && !el.parentElement?.closest('svg'))
@@ -390,11 +437,26 @@ export function beginHints(mode: HintMode, count = 1): HintSession | null {
   return { mode, entries, typed: '', container, count: Math.max(1, count) }
 }
 
+// Entries are in document order, so a range is a slice of them. For text, drop elements
+// nested inside another element of the range — their text is already in the ancestor's.
+function copyRange(session: HintSession, a: number, b: number): void {
+  const range = session.entries.slice(Math.min(a, b), Math.max(a, b) + 1).map(e => e.el)
+  const els = session.mode === 'ydv'
+    ? range.filter(el => !range.some(other => other !== el && other.contains(el)))
+    : range
+  const texts = els
+    .map(el => session.mode === 'ydl' ? (el as HTMLAnchorElement).href : el.innerText?.trim() || '')
+    .filter(t => t)
+  if (texts.length === 0) { showToast('Nothing to copy'); return }
+  writeText(texts.join('\n'))
+  showToast(`Copied ${texts.length} items`)
+}
+
 export function typeHint(session: HintSession, key: string): 'continue' | 'done' | 'cancel' {
   if (key === 'Escape') return 'cancel'
 
   // Enter завершает multi-yank и копирует накопленный текст
-  if (key === 'Enter' && (session.mode === 'ym' || session.mode === 'ymi' || session.mode === 'ctmc')) {
+  if (key === 'Enter' && (session.mode === 'ym' || session.mode === 'ymi' || session.mode === 'yml' || session.mode === 'ctmc')) {
     const collected = session.collected
     if (collected && collected.length > 0) {
       writeText(collected.join('\n'))
@@ -462,6 +524,29 @@ export function typeHint(session: HintSession, key: string): 'continue' | 'done'
     if (session.mode === 'ymi') {
       const el = match.el as HTMLInputElement | HTMLTextAreaElement
       const text = el.value.trim() || (el as HTMLInputElement).placeholder?.trim() || ''
+      if (text) {
+        session.collected = session.collected ?? []
+        session.collected.push(text)
+        match.node.classList.add('selected')
+      }
+      session.typed = ''
+      for (const entry of session.entries) entry.node.classList.remove('dim')
+      return 'continue'
+    }
+    if (session.mode === 'ydv' || session.mode === 'ydl') {
+      const index = session.entries.indexOf(match)
+      if (session.rangeStart === undefined) {
+        session.rangeStart = index
+        match.node.classList.add('selected')
+        session.typed = ''
+        for (const entry of session.entries) entry.node.classList.remove('dim')
+        return 'continue'
+      }
+      copyRange(session, session.rangeStart, index)
+      return 'done'
+    }
+    if (session.mode === 'yml') {
+      const text = (match.el as HTMLAnchorElement).href
       if (text) {
         session.collected = session.collected ?? []
         session.collected.push(text)
@@ -628,6 +713,8 @@ function activate(entry: HintEntry, mode: HintMode, count = 1): void {
     el.value = ''
     el.dispatchEvent(new Event('input', { bubbles: true }))
     el.focus()
+  } else if (mode === 'ptc') {
+    pasteIntoColumn(entry.el as HTMLInputElement | HTMLTextAreaElement)
   } else if (mode === 'pi') {
     const el = entry.el as HTMLInputElement | HTMLTextAreaElement
     el.focus()
