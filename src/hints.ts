@@ -227,7 +227,7 @@ function getColumnText(cell: HTMLTableCellElement): string {
 
 type TextField = HTMLInputElement | HTMLTextAreaElement
 
-// Inputs in the same "column" as `field`, top to bottom. ACF repeaters lay fields out as
+// Inputs in the same "column" as `field`, top to bottom (from the first row, not from `field`). ACF repeaters lay fields out as
 // divs inside one <td>, so a column there is the same data-key across the repeater's rows;
 // otherwise it's the same cellIndex across a plain table's rows.
 function getColumnInputs(field: TextField): TextField[] {
@@ -262,7 +262,9 @@ async function pasteIntoColumn(field: TextField): Promise<void> {
   try { text = await readText() } catch { showToast('Clipboard read failed', ''); return }
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l)
   if (lines.length === 0) { showToast('Clipboard is empty', ''); return }
-  const inputs = getColumnInputs(field)
+  // Start from the picked row so a partial column (e.g. rows 4..N) can be filled
+  const column = getColumnInputs(field)
+  const inputs = column.slice(Math.max(0, column.indexOf(field)))
   if (lines.length !== inputs.length) {
     showToast(`Mismatch: ${lines.length} lines in clipboard, ${inputs.length} rows in column`, '')
     return
