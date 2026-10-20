@@ -13,22 +13,43 @@ let onSelectCb: ((url: string, sameTab: boolean) => void) | null = null
 
 // Subsequence fuzzy match: every char of query must appear in target, in order,
 // possibly with gaps (e.g. "sicuges" matches "sicurezza gestione"). Consecutive
-// runs score higher so tighter matches rank first.
+// runs score higher so tighter matches rank first. Uses DP to find the best
+// alignment — a greedy scan would grab the first scattered occurrence of each
+// char (e.g. "gestione" spread across "...migli — wordpress https...") and miss
+// the tight "/gestione/" run later in the URL.
 function fuzzyScore(query: string, target: string): number | null {
   if (!query) return 0
+  const m = query.length
+  const n = target.length
+  // Cheap greedy check first: rejects non-matches without the O(m*n) DP.
   let qi = 0
-  let score = 0
-  let consecutive = 0
-  for (let ti = 0; ti < target.length && qi < query.length; ti++) {
-    if (target[ti] === query[qi]) {
-      qi++
-      consecutive++
-      score += consecutive
-    } else {
-      consecutive = 0
+  for (let ti = 0; ti < n && qi < m; ti++) if (target[ti] === query[qi]) qi++
+  if (qi < m) return null
+
+  const NEG = -Infinity
+  // prevEnd[j]: best score for query[0..i-1] with query[i-1] matched exactly at target[j]
+  // prevBest[j]: max of prevEnd[0..j]
+  let prevEnd = new Array<number>(n).fill(NEG)
+  let prevBest = new Array<number>(n).fill(NEG)
+  for (let i = 0; i < m; i++) {
+    const curEnd = new Array<number>(n).fill(NEG)
+    const curBest = new Array<number>(n).fill(NEG)
+    for (let j = 0; j < n; j++) {
+      if (target[j] === query[i]) {
+        if (i === 0) {
+          curEnd[j] = 1
+        } else if (j > 0) {
+          // Extending a consecutive run is worth much more than a fresh match.
+          curEnd[j] = Math.max(prevEnd[j - 1] + 3, prevBest[j - 1] + 1)
+        }
+      }
+      curBest[j] = Math.max(j > 0 ? curBest[j - 1] : NEG, curEnd[j])
     }
+    prevEnd = curEnd
+    prevBest = curBest
   }
-  return qi === query.length ? score : null
+  const best = prevBest[n - 1]
+  return best === NEG ? null : best
 }
 
 // Fewer path segments = more general URL (e.g. bare domain before domain/wp-admin
@@ -74,13 +95,14 @@ function filterEntries(query: string): HistoryEntry[] {
   }
 
   // No visit to the bare domain itself exists among the matches — synthesize one
-  // so the shortest URL for a matched domain always surfaces first within it.
-  for (const [origin, bestScore] of bestScoreByOrigin) {
+  // so a matched domain's root is always reachable. It's scored on its own text,
+  // so it surfaces first only when the query targets the domain itself, not a
+  // specific page (e.g. "lorenzogestione" should put /gestione/ first).
+  for (const origin of bestScoreByOrigin.keys()) {
     if (originsWithRoot.has(origin)) continue
-    scored.push({
-      entry: { title: origin.replace(/^https?:\/\//, ''), url: `${origin}/` },
-      score: bestScore,
-    })
+    const entry = { title: origin.replace(/^https?:\/\//, ''), url: `${origin}/` }
+    const score = fuzzyScore(q, `${entry.title} ${entry.url}`.toLowerCase()) ?? 0
+    scored.push({ entry, score })
   }
 
   scored.sort((a, b) => {
@@ -89,8 +111,9 @@ function filterEntries(query: string): HistoryEntry[] {
     const bestA = originA ? bestScoreByOrigin.get(originA)! : a.score
     const bestB = originB ? bestScoreByOrigin.get(originB)! : b.score
     if (bestA !== bestB) return bestB - bestA
-    const segDiff = pathSegmentCount(a.entry.url) - pathSegmentCount(b.entry.url)
-    return segDiff !== 0 ? segDiff : b.score - a.score
+    // Within a domain: best match first, shorter path breaks ties.
+    if (a.score !== b.score) return b.score - a.score
+    return pathSegmentCount(a.entry.url) - pathSegmentCount(b.entry.url)
   })
   return scored.slice(0, 30).map((s) => s.entry)
 }
