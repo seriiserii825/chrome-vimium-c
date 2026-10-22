@@ -182,7 +182,8 @@ function extractWpThemeName(): string | null {
   return null;
 }
 
-const ADMIN_PATHS = ["/gestione", "/login", "/wp-admin"];
+// Injected at build time from ADMIN_PATHS in .env (see vite.config.ts)
+const ADMIN_PATHS: string[] = __ADMIN_PATHS__;
 
 async function adminPathExists(url: string): Promise<boolean> {
   try {
