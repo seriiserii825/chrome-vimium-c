@@ -51,7 +51,7 @@ gU,goRootUrl,Go to root URL,url
 ge,goExtensions,Go to chrome://extensions,url
 gk,goExtensionShortcuts,Go to extension shortcuts,url
 gd,goDownloads,Go to downloads,url
-wa,goWpAdmin,Go to WP admin edit page,url
+wa,goWpAdmin,Open WP admin edit page in new tab,url
 wl,goAdminLogin,Go to admin login (/gestione → /login → /wp-admin),url
 wp,showWpPhp,Show WordPress and PHP versions,url
 wtm,toggleWpMigration,Toggle All-in-One WP Migration plugin,url
