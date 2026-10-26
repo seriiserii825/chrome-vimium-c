@@ -9,4 +9,4 @@ installations in subdirectories; otherwise it uses `/wp-admin/`. Nothing is stor
 data.
 
 Build with `bun install` and `bun run build`, then load `dist/` as an unpacked extension in `chrome://extensions`.
-Reload the extension and the webpage after rebuilding. test
+Reload the extension and the webpage after rebuilding.
