@@ -30,6 +30,15 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: 
     return true;
   }
 
+  // Ctrl+I: native host pulls the backup repo and returns projects.json.
+  if (type === "restoreProjects") {
+    chrome.runtime.sendNativeMessage("com.bs.vimium_projects", { action: "restore" }, (reply) => {
+      if (chrome.runtime.lastError) sendResponse({ ok: false, error: "backup host not installed (native/install.sh)" });
+      else sendResponse(reply);
+    });
+    return true;
+  }
+
   if (type === "getTabs") {
     chrome.tabs.query({ currentWindow: true }, (tabs) => {
       const sorted = tabs.filter(t => t.index !== undefined).sort((a, b) => a.index! - b.index!)

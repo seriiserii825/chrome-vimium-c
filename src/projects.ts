@@ -273,7 +273,8 @@ function renderFooter(): void {
   footer.appendChild(kbd('^S', 'save new'))
   footer.appendChild(kbd('^E', 'backup'))
   footer.appendChild(kbd('^⇧E', 'export'))
-  footer.appendChild(kbd('^O', 'import'))
+  footer.appendChild(kbd('^I', 'import backup'))
+  footer.appendChild(kbd('^O', 'import file'))
 }
 
 function render(): void {
@@ -535,17 +536,45 @@ function importProjects(): void {
         showToast('No projects found in file', '')
         return
       }
-      const byId = new Map(projects.map((p) => [p.id, p]))
-      incoming.forEach((p) => byId.set(p.id, p))
-      projects = [...byId.values()]
-      await saveProjects()
-      showToast(`${plural(incoming.length, 'project')} imported`, '')
-      render()
-      input?.focus()
+      await mergeProjects(incoming)
     }
     reader.readAsText(f)
   })
   file.click()
+}
+
+async function mergeProjects(incoming: Project[]): Promise<void> {
+  const byId = new Map(projects.map((p) => [p.id, p]))
+  incoming.forEach((p) => byId.set(p.id, p))
+  projects = [...byId.values()]
+  await saveProjects()
+  showToast(`${plural(incoming.length, 'project')} imported`, '')
+  render()
+  input?.focus()
+}
+
+// Ctrl+I: import from the backup repo (native host pulls it first), merged like Ctrl+O.
+function restoreProjects(): void {
+  showToast('Loading backup…', '')
+  chrome.runtime.sendMessage({ type: 'restoreProjects' }, (res) => {
+    if (!res?.ok) {
+      showToast(res?.error ?? 'unknown error', 'Import failed: ')
+      return
+    }
+    let incoming: Project[]
+    try {
+      incoming = parseProjects(res.projects)
+    } catch {
+      showToast('Invalid projects.json in backup', '')
+      return
+    }
+    if (incoming.length === 0) {
+      showToast('No projects in backup', '')
+      return
+    }
+    const pullNote = res.pullError ? ` (pull failed: ${res.pullError}, using local copy)` : ''
+    askConfirm(`Import ${plural(incoming.length, 'project')} from backup${pullNote}? Same ids are replaced, others kept.`, () => mergeProjects(incoming))
+  })
 }
 
 // --- keyboard ---
@@ -641,6 +670,9 @@ function onKeydown(e: KeyboardEvent): void {
   } else if (ctrl && e.key === 'o') {
     e.preventDefault()
     importProjects()
+  } else if (ctrl && e.key === 'i') {
+    e.preventDefault()
+    restoreProjects()
   }
 }
 

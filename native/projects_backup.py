@@ -7,6 +7,9 @@ on stdin in the native messaging framing (4-byte little-endian length + JSON).
 It overwrites projects.json in BACKUP_DIR, commits if the content changed and
 pushes, then replies with the result so the panel can show it.
 
+{"action": "restore"} (Ctrl+I) does the reverse: `git pull --ff-only` (to pick up a
+backup pushed from another machine), then replies with the projects from projects.json.
+
 Override the target with VIMIUM_PROJECTS_DIR. Log: ~/.cache/vimium-projects-backup.log
 """
 import json
@@ -94,9 +97,42 @@ def backup(projects: list) -> dict:
     return {"ok": True, "changed": changed, "pushed": True}
 
 
+# Chrome rejects host replies over 1 MB.
+MAX_REPLY = 1024 * 1024 - 1024
+
+
+def restore() -> dict:
+    path = os.path.join(BACKUP_DIR, FILE_NAME)
+    pull_error = None
+    if git("remote").stdout.strip():
+        try:
+            pull = subprocess.run(["git", "-C", BACKUP_DIR, "pull", "-q", "--ff-only"], capture_output=True,
+                                  text=True, stdin=subprocess.DEVNULL, timeout=60)
+            if pull.returncode != 0:
+                lines = (pull.stderr or pull.stdout).strip().splitlines()
+                pull_error = next((l for l in lines if l.startswith(("fatal:", "error:"))), lines[0] if lines else "pull failed")
+        except subprocess.TimeoutExpired:
+            pull_error = "pull timed out"
+        if pull_error:
+            log(f"pull failed: {pull_error}")
+    try:
+        with open(path) as f:
+            projects = json.load(f)
+    except FileNotFoundError:
+        return {"ok": False, "error": f"no {FILE_NAME} in {BACKUP_DIR}"}
+    reply = {"ok": True, "projects": projects, "pullError": pull_error}
+    if len(json.dumps(reply)) > MAX_REPLY:
+        return {"ok": False, "error": "backup is over 1 MB, use Ctrl+O with the file"}
+    log(f"restore: {len(projects)} projects")
+    return reply
+
+
 def main() -> None:
     try:
         msg = read_message()
+        if msg.get("action") == "restore":
+            send_message(restore())
+            return
         projects = msg.get("projects")
         if not isinstance(projects, list):
             send_message({"ok": False, "error": "expected projects array"})
