@@ -6,7 +6,7 @@
   chrome.tabs.reload(tab.id);
 })();
 
-chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: string[]; activeIndex?: number; mode?: string; currentTabId?: number; targetWindowId?: number; ratio?: number; tabId?: number; quality?: string }, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: string[]; activeIndex?: number; mode?: string; currentTabId?: number; targetWindowId?: number; ratio?: number; tabId?: number; quality?: string; message?: string }, _sender, sendResponse) => {
   const type = msg.type;
 
   if (type === "searchHistory") {
@@ -22,7 +22,7 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: 
   // Manual projects backup (Ctrl+E in the panel) through the native host, see native/.
   if (type === "backupProjects") {
     chrome.storage.local.get("bs-projects", (res) => {
-      chrome.runtime.sendNativeMessage("com.bs.vimium_projects", { projects: res["bs-projects"] ?? [] }, (reply) => {
+      chrome.runtime.sendNativeMessage("com.bs.vimium_projects", { projects: res["bs-projects"] ?? [], message: msg.message }, (reply) => {
         if (chrome.runtime.lastError) sendResponse({ ok: false, noHost: true, error: chrome.runtime.lastError.message });
         else sendResponse(reply);
       });

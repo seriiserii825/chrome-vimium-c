@@ -40,6 +40,10 @@ type Row =
 
 // chrome.storage, not localStorage: projects must be the same on every site.
 const STORAGE_KEY = 'bs-projects'
+// Set by any meaningful edit (create/rename/update/add tab/delete/import), used as the
+// git commit message on the next Ctrl+E. Persisted so it survives across tabs/popup,
+// since `projects` itself is reloaded fresh from storage on every showProjects() call.
+const DIRTY_KEY = 'bs-projects-dirty'
 
 let backdrop: HTMLElement | null = null
 let input: HTMLInputElement | null = null
@@ -49,6 +53,7 @@ let list: HTMLElement | null = null
 let footer: HTMLElement | null = null
 
 let projects: Project[] = []
+let dirtyMessage: string | null = null
 let rows: Row[] = []
 let selectedIndex = 0
 let expanded = new Set<number>()
@@ -65,6 +70,16 @@ async function loadProjects(): Promise<Project[]> {
 
 async function saveProjects(): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_KEY]: projects })
+}
+
+async function markDirty(message: string): Promise<void> {
+  dirtyMessage = message
+  await chrome.storage.local.set({ [DIRTY_KEY]: message })
+}
+
+async function clearDirty(): Promise<void> {
+  dirtyMessage = null
+  await chrome.storage.local.remove(DIRTY_KEY)
 }
 
 function getWindowTabs(): Promise<WindowTab[]> {
@@ -380,6 +395,7 @@ async function createProject(title: string): Promise<void> {
   const project: Project = { id: Date.now(), title, items, updated_at: Date.now() }
   projects.push(project)
   await saveProjects()
+  await markDirty(`save: ${title}`)
   showToast(`${plural(items.length, 'tab')} → “${title}”`, 'Saved ')
   backToSearch('')
   selectProject(project.id)
@@ -395,6 +411,7 @@ async function updateProject(project: Project): Promise<void> {
     project.items = keepIds(project.items, items)
     project.updated_at = Date.now()
     await saveProjects()
+    await markDirty(`update: ${project.title}`)
     showToast(`“${project.title}” updated`, '')
   })
 }
@@ -409,6 +426,7 @@ async function addCurrentTab(project: Project): Promise<void> {
   project.items.push({ id: Date.now(), title: active.title || active.url, url: active.url })
   project.updated_at = Date.now()
   await saveProjects()
+  await markDirty(`update: ${project.title}`)
   showToast(`${active.title} → “${project.title}”`, 'Added ')
   render()
   selectProject(project.id)
@@ -422,12 +440,14 @@ function deleteSelected(): void {
     askConfirm(`Remove “${row.tab.title}” from “${project.title}”?`, async () => {
       project.items = project.items.filter((t) => t !== row.tab)
       await saveProjects()
+      await markDirty(`update: ${project.title}`)
     })
     return
   }
   askConfirm(`Delete project “${project.title}” (${plural(project.items.length, 'tab')})?`, async () => {
     projects = projects.filter((p) => p !== project)
     await saveProjects()
+    await markDirty(`delete: ${project.title}`)
     showToast(`“${project.title}” deleted`, '')
   })
 }
@@ -445,6 +465,7 @@ async function commitName(): Promise<void> {
   if (project) {
     project.title = title
     await saveProjects()
+    await markDirty(`rename: ${title}`)
   }
   backToSearch(query)
   selectProject(projectId)
@@ -465,24 +486,31 @@ function activate(openMode: OpenMode): void {
 }
 
 // Ctrl+E: the native host (native/projects_backup.py) overwrites projects.json in the
-// backup repo, commits and pushes. Without the host installed, falls back to a download.
+// backup repo, commits (using the last edit's project name as the message, via
+// markDirty/dirtyMessage) and pushes. Without the host installed, falls back to a download.
 function backupProjects(): void {
-  if (projects.length === 0) {
-    showToast('Nothing to save', '')
+  if (!dirtyMessage) {
+    showToast('Nothing to export', '')
     return
   }
   // Asks first: the backup file is overwritten, so a wrong state could replace a good one.
   askConfirm(`Overwrite backup with ${plural(projects.length, 'project')} and push?`, () => {
     showToast('Saving backup…', '')
-    chrome.runtime.sendMessage({ type: 'backupProjects' }, onBackupResult)
+    chrome.runtime.sendMessage({ type: 'backupProjects', message: dirtyMessage }, onBackupResult)
   })
 }
 
 function onBackupResult(res: { ok?: boolean; noHost?: boolean; error?: string; pushError?: string; changed?: boolean; pushed?: boolean } | undefined): void {
-  if (res?.noHost) downloadProjects()
-  else if (!res?.ok) showToast(res?.error ?? 'unknown error', 'Backup failed: ')
-  else if (res.pushError) showToast(res.pushError, 'Committed, push failed: ')
-  else showToast(`${plural(projects.length, 'project')}${res.changed ? '' : ' (no changes)'}${res.pushed ? ' · pushed' : ''}`, 'Backup: ')
+  if (res?.noHost) {
+    downloadProjects()
+    void clearDirty()
+  } else if (!res?.ok) {
+    showToast(res?.error ?? 'unknown error', 'Backup failed: ')
+  } else {
+    void clearDirty()
+    if (res.pushError) showToast(res.pushError, 'Committed, push failed: ')
+    else showToast(`${plural(projects.length, 'project')}${res.changed ? '' : ' (no changes)'}${res.pushed ? ' · pushed' : ''}`, 'Backup: ')
+  }
 }
 
 // Ctrl+Shift+E: plain JSON download, independent of the backup repo.
@@ -548,6 +576,7 @@ async function mergeProjects(incoming: Project[]): Promise<void> {
   incoming.forEach((p) => byId.set(p.id, p))
   projects = [...byId.values()]
   await saveProjects()
+  await markDirty(`import: ${plural(incoming.length, 'project')}`)
   showToast(`${plural(incoming.length, 'project')} imported`, '')
   render()
   input?.focus()
@@ -683,6 +712,7 @@ export async function showProjects(startNaming = false, onHideCb: (() => void) |
   if (backdrop) return
   onHide = onHideCb
   projects = await loadProjects()
+  dirtyMessage = ((await chrome.storage.local.get(DIRTY_KEY))[DIRTY_KEY] as string | undefined) ?? null
   mode = startNaming ? { kind: 'name', query: '' } : { kind: 'search' }
   selectedIndex = 0
   expanded = new Set()

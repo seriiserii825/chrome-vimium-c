@@ -49,7 +49,7 @@ def git(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(["git", "-C", BACKUP_DIR, *args], capture_output=True, text=True)
 
 
-def backup(projects: list) -> dict:
+def backup(projects: list, message: str | None) -> dict:
     os.makedirs(BACKUP_DIR, exist_ok=True)
     path = os.path.join(BACKUP_DIR, FILE_NAME)
     content = json.dumps(projects, ensure_ascii=False, indent=2) + "\n"
@@ -73,7 +73,10 @@ def backup(projects: list) -> dict:
 
     if changed:
         git("add", FILE_NAME)
-        commit = git("commit", "-q", "-m", f"backup: {len(projects)} projects", "--", FILE_NAME)
+        # The extension names the last edit (e.g. "update: My Project"); falls back to a
+        # generic message if it's missing or blank (e.g. an older client without this field).
+        commit_message = message.strip() if message and message.strip() else f"backup: {len(projects)} projects"
+        commit = git("commit", "-q", "-m", commit_message, "--", FILE_NAME)
         if commit.returncode != 0:
             log(f"commit failed: {commit.stderr.strip() or commit.stdout.strip()}")
             return {"ok": False, "error": "commit failed"}
@@ -137,7 +140,7 @@ def main() -> None:
         if not isinstance(projects, list):
             send_message({"ok": False, "error": "expected projects array"})
             return
-        send_message(backup(projects))
+        send_message(backup(projects, msg.get("message")))
     except Exception as e:  # never let Chrome see a crash without a reply
         log(f"error: {e!r}")
         send_message({"ok": False, "error": str(e)})
