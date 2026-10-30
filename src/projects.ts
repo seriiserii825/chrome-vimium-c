@@ -83,6 +83,21 @@ function savableTabs(tabs: WindowTab[]): ProjectTab[] {
     .map((t, i) => ({ id: Date.now() + i, title: t.title || t.url, url: t.url, ...(t.active ? { active: true } : {}) }))
 }
 
+// Tabs already in the project (matched by url) keep their ids, so the exported JSON diff
+// only shows real changes — same as Quick Tabs.
+function keepIds(oldItems: ProjectTab[], newItems: ProjectTab[]): ProjectTab[] {
+  const pool = [...oldItems]
+  const used = new Set(oldItems.map((t) => t.id))
+  return newItems.map((t) => {
+    const i = pool.findIndex((o) => o.url === t.url)
+    if (i !== -1) return { ...t, id: pool.splice(i, 1)[0].id }
+    let id = t.id ?? Date.now()
+    while (used.has(id)) id++
+    used.add(id)
+    return { ...t, id }
+  })
+}
+
 function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`
 }
@@ -375,7 +390,7 @@ async function updateProject(project: Project): Promise<void> {
     return
   }
   askConfirm(`Replace ${plural(project.items.length, 'tab')} of “${project.title}” with ${plural(items.length, 'current tab')}?`, async () => {
-    project.items = items
+    project.items = keepIds(project.items, items)
     project.updated_at = Date.now()
     await saveProjects()
     showToast(`“${project.title}” updated`, '')
@@ -452,7 +467,7 @@ function exportProjects(): void {
     showToast('Nothing to export', '')
     return
   }
-  const blob = new Blob([JSON.stringify(projects, null, 2)], { type: 'application/json' })
+  const blob = new Blob([JSON.stringify(projects, null, 2) + '\n'], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
