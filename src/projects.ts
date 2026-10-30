@@ -51,6 +51,7 @@ let rows: Row[] = []
 let selectedIndex = 0
 let expanded = new Set<number>()
 let mode: Mode = { kind: 'search' }
+let onHide: (() => void) | null = null
 
 // --- storage ---
 
@@ -70,10 +71,13 @@ function getWindowTabs(): Promise<WindowTab[]> {
   })
 }
 
+// Empty New Tab pages are noise in a saved project (the popup is often opened from one).
+const NEW_TAB_URLS = new Set(['chrome://newtab/', 'chrome://new-tab-page/'])
+
 // Pinned tabs stay open when a project replaces the window, so they are never saved into one.
 function savableTabs(tabs: WindowTab[]): ProjectTab[] {
   return tabs
-    .filter((t) => !t.pinned && t.url && !t.url.startsWith('chrome-extension://'))
+    .filter((t) => !t.pinned && t.url && !t.url.startsWith('chrome-extension://') && !NEW_TAB_URLS.has(t.url))
     .map((t, i) => ({ id: Date.now() + i, title: t.title || t.url, url: t.url }))
 }
 
@@ -340,8 +344,9 @@ async function openProject(project: Project, openMode: OpenMode): Promise<void> 
   project.updated_at = Date.now()
   // Saved before messaging: in replace mode this very tab may be closed.
   await saveProjects()
-  hideProjects()
+  // Message first: in the popup, hiding closes the window.
   chrome.runtime.sendMessage({ type: 'openProject', urls: project.items.map((t) => t.url), mode: openMode })
+  hideProjects()
 }
 
 async function createProject(title: string): Promise<void> {
@@ -432,8 +437,8 @@ function activate(openMode: OpenMode): void {
   } else if (row.kind === 'project') {
     void openProject(row.project, openMode)
   } else {
-    hideProjects()
     chrome.runtime.sendMessage({ type: 'navigateTo', url: row.tab.url })
+    hideProjects()
   }
 }
 
@@ -595,8 +600,10 @@ function onKeydown(e: KeyboardEvent): void {
 
 // --- lifecycle ---
 
-export async function showProjects(startNaming = false): Promise<void> {
+// onHideCb: the popup passes window.close, so closing the panel closes the popup.
+export async function showProjects(startNaming = false, onHideCb: (() => void) | null = null): Promise<void> {
   if (backdrop) return
+  onHide = onHideCb
   projects = await loadProjects()
   mode = startNaming ? { kind: 'name', query: '' } : { kind: 'search' }
   selectedIndex = 0
@@ -652,6 +659,9 @@ export function hideProjects(): void {
   list = null
   footer = null
   rows = []
+  const cb = onHide
+  onHide = null
+  cb?.()
 }
 
 export function isProjectsVisible(): boolean {

@@ -12,6 +12,8 @@
     "128": "icon128.png"
   },
   "action": {
+    "default_title": "Projects",
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "icon16.png",
       "32": "icon32.png",
@@ -21,6 +23,12 @@
   },
   "permissions": ["tabs", "sessions", "downloads", "windows", "storage", "cookies", "scripting", "history", "management", "clipboardRead", "favicon"],
   "host_permissions": ["<all_urls>"],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+P" },
+      "description": "Open Projects (works on New Tab and chrome:// pages)"
+    }
+  },
   "background": {
     "service_worker": "background.js"
   },

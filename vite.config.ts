@@ -44,7 +44,7 @@ export default defineConfig(({ mode }) => {
       name: 'build-background',
       async closeBundle() {
         await esbuild({
-          entryPoints: ['src/background.ts', 'src/picker.ts'],
+          entryPoints: ['src/background.ts', 'src/picker.ts', 'src/popup.ts'],
           bundle: true,
           outdir: 'dist',
           format: 'iife',
@@ -57,6 +57,8 @@ export default defineConfig(({ mode }) => {
       closeBundle() {
         copyFileSync('manifest.json', 'dist/manifest.json')
         copyFileSync('src/picker.html', 'dist/picker.html')
+        copyFileSync('src/popup.html', 'dist/popup.html')
+        copyFileSync('src/projects.css', 'dist/projects.css')
         copyFileSync('src/icons/icon16.png', 'dist/icon16.png')
         copyFileSync('src/icons/icon32.png', 'dist/icon32.png')
         copyFileSync('src/icons/icon48.png', 'dist/icon48.png')
