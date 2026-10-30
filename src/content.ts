@@ -19,7 +19,7 @@ import { showCookieConfirm, hideCookieConfirm, isCookieConfirmVisible } from "./
 import { hideImageInfo, isImageInfoVisible } from "./imageinfo";
 import { showSeoInfo, hideSeoInfo, isSeoInfoVisible } from "./seoinfo";
 import { showSeoHeadings, hideSeoHeadings, isSeoHeadingsVisible } from "./seoheadings";
-import { showTimecode, hideTimecode, isTimecodeVisible, saveCurrentTimecode, exportTimecodes, importTimecodes, startTimecodeWatcher } from "./timecode";
+import { showTimecode, hideTimecode, isTimecodeVisible, saveCurrentTimecode, goToTime, exportTimecodes, importTimecodes, startTimecodeWatcher } from "./timecode";
 import { showHistorySearch, hideHistorySearch, isHistorySearchVisible, HistoryEntry } from "./historysearch";
 import { showFind, hideFind, isFindVisible } from "./findinpage";
 import { applyBestQuality } from "./videoquality";
@@ -128,6 +128,7 @@ type Action =
   | "goToTab"
   | "seekTimecode"
   | "saveTimecode"
+  | "goToTime"
   | "exportTimecodes"
   | "importTimecodes"
   | "speedUp"
@@ -471,6 +472,7 @@ const actions: Record<Action, () => void> = {
   },
   seekTimecode: () => { showTimecode() },
   saveTimecode: () => { saveCurrentTimecode() },
+  goToTime: () => { goToTime() },
   exportTimecodes: () => { exportTimecodes() },
   importTimecodes: () => { importTimecodes() },
   speedUp: () => {

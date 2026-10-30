@@ -1,4 +1,5 @@
 import { showPrompt } from './prompt'
+import { showToast } from './toast'
 
 const STORAGE_KEY = 'bs-timecodes'
 const MAX_PER_VIDEO = 30
@@ -533,6 +534,19 @@ function seekToTime(seconds: number): void {
   const url = new URL(window.location.href)
   url.searchParams.set('t', `${seconds}s`)
   window.location.href = url.href
+}
+
+// Accepts "h,m,s"; fewer parts are right-aligned ("m,s" or "s")
+export function goToTime(): void {
+  showPrompt('Go to time (h,m,s)', '', (value) => {
+    const parts = value.split(',').map(p => p.trim())
+    if (parts.length > 3 || parts.some(p => !/^\d+$/.test(p))) {
+      showToast(value, 'Invalid time: ')
+      return
+    }
+    const [s = 0, m = 0, h = 0] = parts.reverse().map(Number)
+    seekToTime(h * 3600 + m * 60 + s)
+  })
 }
 
 export function saveCurrentTimecode(): void {
