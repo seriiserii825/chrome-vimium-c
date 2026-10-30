@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "chrome-vimium-c",
   "version": "0.1.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqvNC2Wc3iGbSLBibD8R2hcDeb8pREaHwHF/fpRH+oXp9Irz6hF/KCRKTFSE3z2HtTqG7rpoQzJnVHGVW2qAOg0LlLr2Aqc3+fSSqwNG8TarXVaovI8MIXbIbtpAOico0qDcv+oCP5ZmEWP3+/1ifpG9zMjrBWoUTYZdd5fctlwndFQxrOZf0eVGgyCqH5uF7gl/9AO/a4I1Ql8/TAcGYEli876xWE7PZ9IEWGyMbMZG11H/HSP+zxEfYJv3dt9Pxz1viCBByLDKDg6MdxbMPESDHfrlEdoJMEp4Cnwdcvo0iLyKjvs/u1LIu0eD+I46PH6BaPzEwaMpJm9H1EwFsnQIDAQAB",
   "author": "Burduja Sergiu Blueline",
   "homepage_url": "https://github.com/seriiserii825/chrome-vimium-c",
   "description": "Keyboard-driven browser navigation",
@@ -21,7 +22,7 @@
       "128": "icon128.png"
     }
   },
-  "permissions": ["tabs", "sessions", "downloads", "windows", "storage", "cookies", "scripting", "history", "management", "clipboardRead", "favicon"],
+  "permissions": ["tabs", "sessions", "downloads", "windows", "storage", "cookies", "scripting", "history", "management", "clipboardRead", "favicon", "nativeMessaging"],
   "host_permissions": ["<all_urls>"],
   "commands": {
     "_execute_action": {

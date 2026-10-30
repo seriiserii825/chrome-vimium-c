@@ -19,6 +19,17 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: 
     return true;
   }
 
+  // Manual projects backup (Ctrl+E in the panel) through the native host, see native/.
+  if (type === "backupProjects") {
+    chrome.storage.local.get("bs-projects", (res) => {
+      chrome.runtime.sendNativeMessage("com.bs.vimium_projects", { projects: res["bs-projects"] ?? [] }, (reply) => {
+        if (chrome.runtime.lastError) sendResponse({ ok: false, noHost: true, error: chrome.runtime.lastError.message });
+        else sendResponse(reply);
+      });
+    });
+    return true;
+  }
+
   if (type === "getTabs") {
     chrome.tabs.query({ currentWindow: true }, (tabs) => {
       const sorted = tabs.filter(t => t.index !== undefined).sort((a, b) => a.index! - b.index!)

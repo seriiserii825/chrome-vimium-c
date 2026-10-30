@@ -271,7 +271,7 @@ function renderFooter(): void {
     footer.appendChild(kbd('Del', 'delete'))
   }
   footer.appendChild(kbd('^S', 'save new'))
-  footer.appendChild(kbd('^E', 'export'))
+  footer.appendChild(kbd('^E', 'backup'))
   footer.appendChild(kbd('^O', 'import'))
 }
 
@@ -462,11 +462,23 @@ function activate(openMode: OpenMode): void {
   }
 }
 
-function exportProjects(): void {
+// Ctrl+E: the native host (native/projects_backup.py) overwrites projects.json in the
+// backup repo, commits and pushes. Without the host installed, falls back to a download.
+function backupProjects(): void {
   if (projects.length === 0) {
-    showToast('Nothing to export', '')
+    showToast('Nothing to save', '')
     return
   }
+  showToast('Saving backup…', '')
+  chrome.runtime.sendMessage({ type: 'backupProjects' }, (res) => {
+    if (res?.noHost) downloadProjects()
+    else if (!res?.ok) showToast(res?.error ?? 'unknown error', 'Backup failed: ')
+    else if (res.pushError) showToast(res.pushError, 'Committed, push failed: ')
+    else showToast(`${plural(projects.length, 'project')}${res.changed ? '' : ' (no changes)'}${res.pushed ? ' · pushed' : ''}`, 'Backup: ')
+  })
+}
+
+function downloadProjects(): void {
   const blob = new Blob([JSON.stringify(projects, null, 2) + '\n'], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -611,7 +623,7 @@ function onKeydown(e: KeyboardEvent): void {
     if (project) void addCurrentTab(project)
   } else if (ctrl && e.key === 'e') {
     e.preventDefault()
-    exportProjects()
+    backupProjects()
   } else if (ctrl && e.key === 'o') {
     e.preventDefault()
     importProjects()

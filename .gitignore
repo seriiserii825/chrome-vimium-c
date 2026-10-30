@@ -55,3 +55,6 @@ Thumbs.db
 .vscode
 .env
 .env.sha256
+
+# native host wrapper with a machine-specific backup dir (native/install.sh <dir>)
+native/projects_backup.local.sh
