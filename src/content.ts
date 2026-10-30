@@ -10,6 +10,7 @@ import "./tabswitcher.css";
 import "./timecode.css";
 import "./historysearch.css";
 import "./findinpage.css";
+import "./projects.css";
 import { beginHints, typeHint, endHints, unhoverLast, HintSession } from "./hints";
 import { beginTabSwitch, typeTabSwitch, endTabSwitch, TabSwitchSession, beginWindowPick, typeWindowPick, endWindowPick, WindowPickSession } from "./tabswitcher";
 import { showHelp, hideHelp, isHelpVisible } from "./help";
@@ -22,6 +23,7 @@ import { showSeoHeadings, hideSeoHeadings, isSeoHeadingsVisible } from "./seohea
 import { showTimecode, hideTimecode, isTimecodeVisible, saveCurrentTimecode, goToTime, exportTimecodes, importTimecodes, startTimecodeWatcher } from "./timecode";
 import { showHistorySearch, hideHistorySearch, isHistorySearchVisible, HistoryEntry } from "./historysearch";
 import { showFind, hideFind, isFindVisible } from "./findinpage";
+import { showProjects, isProjectsVisible } from "./projects";
 import { applyBestQuality } from "./videoquality";
 import { physicalKey } from "./keycode";
 import { showToast } from "./toast";
@@ -79,6 +81,8 @@ type Action =
   | "reloadTabHard"
   | "closeTabsRight"
   | "closeTabsOthers"
+  | "showProjects"
+  | "saveProject"
   | "yankText"
   | "copyInnerHtml"
   | "copyOuterHtml"
@@ -418,6 +422,8 @@ const actions: Record<Action, () => void> = {
   reloadTabHard:    () => { chrome.runtime.sendMessage({ type: "reloadTabHard" }) },
   closeTabsRight:   () => { chrome.runtime.sendMessage({ type: "closeTabsRight" }) },
   closeTabsOthers:  () => { chrome.runtime.sendMessage({ type: "closeTabsOthers" }) },
+  showProjects:     () => { void showProjects() },
+  saveProject:      () => { void showProjects(true) },
   moveTabToWindow: () => {
     chrome.runtime.sendMessage({ type: "getOtherWindowTabs" }, (res) => {
       if (!res?.windows?.length) return;
@@ -601,6 +607,8 @@ document.addEventListener(
       return;
     }
     if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'NumLock', 'ScrollLock', 'AltGraph'].includes(e.key)) return;
+    // The projects panel handles every key itself, including Escape and Ctrl combos
+    if (isProjectsVisible()) return;
 
     // Ctrl+[ (как в vim) отменяет labels — Escape может перехватить страница (закрыть popup)
     const ctrlBracket = e.ctrlKey && !e.altKey && !e.metaKey && e.code === 'BracketLeft'

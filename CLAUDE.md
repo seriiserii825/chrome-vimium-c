@@ -72,6 +72,8 @@ Escape calls `unhoverLast()` which reverses both.
 
 **Tab switcher** (`tabswitcher.ts`) — `tg` opens a visual overlay of all tabs in the current window, each labeled with a hint character. Typing a label activates that tab. `tw` (moveTabToWindow) opens a similar overlay for picking which window to move the current tab to — this uses `picker.ts` / `picker.html` rendered in a popup window via `chrome.windows.create`.
 
+**Projects** (`projects.ts` / `projects.css`) — port of the Quick Tabs Project extension. `tp` opens a command-palette panel of saved tab sets; `ts` opens it straight in "new project" naming mode. Stored in `chrome.storage.local` under `bs-projects` (not `localStorage` — must be shared across sites), same JSON shape as the Quick Tabs export (`{ id, title, items: [{ id, title, url }], updated_at }`), so Ctrl+O import / Ctrl+E export interoperate; import merges by `id`. Search fuzzy-matches project titles only (`fuzzyScore` from `historysearch.ts`) — tabs inside projects are not searched. Keys inside the panel: Enter open (replace window), Shift+Enter add to window, Ctrl+Enter new window, Tab/→/← expand/collapse, F2 rename, Ctrl+U replace with current window tabs, Ctrl+A add current tab, Del delete (y/n confirm), Ctrl+S save new. Opening goes through background `openProject` (`mode`: `replace` | `keep` | `window`): pinned tabs are never saved nor closed, and tabs already open with a project URL are reused instead of reloaded. Favicons come from the `_favicon` API (`favicon` permission + `web_accessible_resources`), with a letter fallback when page CSP blocks them. content.ts returns early from its keydown handler while the panel is visible — the panel's input handles all keys.
+
 **Timecode** (`timecode.ts`) — YouTube-specific. `vc` opens a prompt to seek to a `HH:MM:SS` timestamp. `vs` saves the current position with a name prompt. `ve`/`vi` export/import timecodes as JSON. Entries are stored in `localStorage` under `bs-timecodes`, keyed by YouTube video ID, max 30 per video. `startTimecodeWatcher()` runs a 500ms interval: when `video.currentTime` naturally reaches a saved timecode, the video pauses and a popup appears asking to Continue or Stay. Seeking to a timecode manually (via the list) pre-marks it in `firedSeconds` so the watcher doesn't fire. Seeking backwards more than 3 seconds re-arms timecodes that are now in the future. Timecode entries are deleted with `Delete` key only (not Backspace).
 
 **SEO tools** — `sh` (`seoinfo.ts`) shows a panel with meta title, description, og/twitter tags, and canonical URL. `st` (`seoheadings.ts`) shows the heading structure (h1–h3) as an outline panel. Both panels close on Escape or a second keypress.
@@ -99,6 +101,7 @@ Escape calls `unhoverLast()` which reverses both.
 | `tabswitcher.ts` | Tab/window picker overlays (`tg`, `tw`) |
 | `whichkey.ts` | Prefix key disambiguation panel |
 | `scroll.ts` | Physics scroll |
+| `projects.ts` | Saved tab sets panel (`tp` / `ts`), port of Quick Tabs Project |
 | `timecode.ts` | YouTube timecode save/seek/export/import |
 | `videoquality.ts` | Video quality picker + fullscreen + speed |
 | `seoinfo.ts` | SEO meta info panel |

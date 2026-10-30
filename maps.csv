@@ -75,6 +75,8 @@ R,reloadTabHard,Reload tab bypassing cache,tab
 tr,closeTabsRight,Close tabs to the right,tab
 ta,closeTabsOthers,Close all other tabs,tab
 tw,moveTabToWindow,Move tab to another window,tab
+tp,showProjects,Projects: saved tab sets (open / save / update),tab
+ts,saveProject,Save current window as a new project,tab
 oi,openIncognito,Open current tab in in,opencognito window
 sh,showSeoInfo,Show SEO meta info,seo
 st,showSeoHeadings,Show heading structure (h1/h2/h3),seo

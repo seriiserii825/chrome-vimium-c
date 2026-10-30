@@ -17,7 +17,7 @@ let onSelectCb: ((url: string, sameTab: boolean) => void) | null = null
 // alignment — a greedy scan would grab the first scattered occurrence of each
 // char (e.g. "gestione" spread across "...migli — wordpress https...") and miss
 // the tight "/gestione/" run later in the URL.
-function fuzzyScore(query: string, target: string): number | null {
+export function fuzzyScore(query: string, target: string): number | null {
   if (!query) return 0
   const m = query.length
   const n = target.length

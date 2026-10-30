@@ -6,7 +6,7 @@
   chrome.tabs.reload(tab.id);
 })();
 
-chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; currentTabId?: number; targetWindowId?: number; ratio?: number; tabId?: number; quality?: string }, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: string[]; mode?: string; currentTabId?: number; targetWindowId?: number; ratio?: number; tabId?: number; quality?: string }, _sender, sendResponse) => {
   const type = msg.type;
 
   if (type === "searchHistory") {
@@ -22,9 +22,49 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; current
   if (type === "getTabs") {
     chrome.tabs.query({ currentWindow: true }, (tabs) => {
       const sorted = tabs.filter(t => t.index !== undefined).sort((a, b) => a.index! - b.index!)
-      sendResponse({ tabs: sorted.map(t => ({ id: t.id!, title: t.title || '', url: t.url || '', favIconUrl: t.favIconUrl, active: t.active })) })
+      sendResponse({ tabs: sorted.map(t => ({ id: t.id!, title: t.title || '', url: t.url || '', favIconUrl: t.favIconUrl, active: t.active, pinned: t.pinned })) })
     })
     return true
+  }
+
+  // Projects: "replace" makes the window match the project (pinned tabs are kept,
+  // tabs already open with a project URL are reused instead of reloaded),
+  // "keep" adds the missing ones, "window" opens the project in a new window.
+  if (type === "openProject" && msg.urls?.length) {
+    (async () => {
+      const urls = msg.urls!;
+      if (msg.mode === "window") {
+        await chrome.windows.create({ url: urls, focused: true });
+        return;
+      }
+      const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const windowId = active.windowId;
+      const open = await chrome.tabs.query({ windowId });
+      const free = open.filter(t => !t.pinned);
+      const pinnedCount = open.length - free.length;
+      const ids: number[] = [];
+      for (const url of urls) {
+        const i = free.findIndex(t => (t.url || t.pendingUrl) === url);
+        if (i !== -1) {
+          ids.push(free[i].id!);
+          free.splice(i, 1);
+          continue;
+        }
+        try {
+          const tab = await chrome.tabs.create({ windowId, url, active: false });
+          ids.push(tab.id!);
+        } catch {
+          // e.g. file:// without access — skip that tab, open the rest
+        }
+      }
+      if (!ids.length) return;
+      await chrome.tabs.update(ids[0], { active: true });
+      if (msg.mode === "replace") {
+        if (free.length) await chrome.tabs.remove(free.map(t => t.id!));
+        await chrome.tabs.move(ids, { index: pinnedCount });
+      }
+    })();
+    return;
   }
 
   if (type === "switchToTab" && msg.tabId !== undefined) {
