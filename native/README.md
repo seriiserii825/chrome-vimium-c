@@ -54,16 +54,3 @@ Chrome запускает скрипт со своим окружением и �
 ```bash
 rm ~/.config/{google-chrome,chromium,BraveSoftware/Brave-Browser}/NativeMessagingHosts/com.bs.vimium_projects.json
 ```
-
-## Где что лежит
-
-| Что | Где |
-|-----|-----|
-| Скрипт бэкапа | `native/projects_backup.py` в папке расширения |
-| Файл бэкапа | `~/Documents/vimium-tabs/projects.json` |
-| Репозиторий бэкапа | `ssh://git@git.umervtilte.lol:2222/g.artiom/vimium-tabs.git` |
-| Регистрация в браузере | `~/.config/google-chrome/NativeMessagingHosts/com.bs.vimium_projects.json` (то же для `chromium` и `BraveSoftware/Brave-Browser`) |
-| Лог | `~/.cache/vimium-projects-backup.log` |
-| ID расширения | `ecpabanjdgnmfemepdgoimbhlbdmmhnh` (`chrome://extensions`) |
-| Проекты внутри браузера | `chrome.storage.local`, ключ `bs-projects` |
-| Код в расширении | `src/projects.ts` (Ctrl+E → `backupProjects`), `src/background.ts` (`sendNativeMessage`) |

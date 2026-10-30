@@ -10,3 +10,5 @@ data.
 
 Build with `bun install` and `bun run build`, then load `dist/` as an unpacked extension in `chrome://extensions`.
 Reload the extension and the webpage after rebuilding.
+
+Projects backup to git (`Ctrl+E` in the Projects panel): see [native/README.md](native/README.md).
