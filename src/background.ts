@@ -30,11 +30,15 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: 
     return true;
   }
 
-  // Ctrl+I: native host pulls the backup repo and returns projects.json.
+  // Ctrl+I: native host pulls the backup repo and returns projects.json, unless it
+  // matches what's already stored locally (current bs-projects is sent along so the
+  // host can tell).
   if (type === "restoreProjects") {
-    chrome.runtime.sendNativeMessage("com.bs.vimium_projects", { action: "restore" }, (reply) => {
-      if (chrome.runtime.lastError) sendResponse({ ok: false, error: "backup host not installed (native/install.sh)" });
-      else sendResponse(reply);
+    chrome.storage.local.get("bs-projects", (res) => {
+      chrome.runtime.sendNativeMessage("com.bs.vimium_projects", { action: "restore", projects: res["bs-projects"] ?? [] }, (reply) => {
+        if (chrome.runtime.lastError) sendResponse({ ok: false, error: "backup host not installed (native/install.sh)" });
+        else sendResponse(reply);
+      });
     });
     return true;
   }

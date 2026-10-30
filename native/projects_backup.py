@@ -104,7 +104,7 @@ def backup(projects: list, message: str | None) -> dict:
 MAX_REPLY = 1024 * 1024 - 1024
 
 
-def restore() -> dict:
+def restore(local_projects: list) -> dict:
     path = os.path.join(BACKUP_DIR, FILE_NAME)
     pull_error = None
     if git("remote").stdout.strip():
@@ -123,6 +123,12 @@ def restore() -> dict:
             projects = json.load(f)
     except FileNotFoundError:
         return {"ok": False, "error": f"no {FILE_NAME} in {BACKUP_DIR}"}
+
+    # Nothing changed vs. what the extension already has: skip the merge/import prompt.
+    if projects == local_projects:
+        log("restore: already up to date")
+        return {"ok": True, "upToDate": True, "pullError": pull_error}
+
     reply = {"ok": True, "projects": projects, "pullError": pull_error}
     if len(json.dumps(reply)) > MAX_REPLY:
         return {"ok": False, "error": "backup is over 1 MB, use Ctrl+O with the file"}
@@ -134,7 +140,8 @@ def main() -> None:
     try:
         msg = read_message()
         if msg.get("action") == "restore":
-            send_message(restore())
+            local_projects = msg.get("projects")
+            send_message(restore(local_projects if isinstance(local_projects, list) else []))
             return
         projects = msg.get("projects")
         if not isinstance(projects, list):

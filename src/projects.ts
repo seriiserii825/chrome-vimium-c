@@ -590,6 +590,10 @@ function restoreProjects(): void {
       showToast(res?.error ?? 'unknown error', 'Import failed: ')
       return
     }
+    if (res.upToDate) {
+      showToast('Already up to date', '')
+      return
+    }
     let incoming: Project[]
     try {
       incoming = parseProjects(res.projects)
