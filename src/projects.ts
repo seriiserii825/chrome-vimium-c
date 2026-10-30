@@ -272,6 +272,7 @@ function renderFooter(): void {
   }
   footer.appendChild(kbd('^S', 'save new'))
   footer.appendChild(kbd('^E', 'backup'))
+  footer.appendChild(kbd('^⇧E', 'export'))
   footer.appendChild(kbd('^O', 'import'))
 }
 
@@ -469,16 +470,26 @@ function backupProjects(): void {
     showToast('Nothing to save', '')
     return
   }
-  showToast('Saving backup…', '')
-  chrome.runtime.sendMessage({ type: 'backupProjects' }, (res) => {
-    if (res?.noHost) downloadProjects()
-    else if (!res?.ok) showToast(res?.error ?? 'unknown error', 'Backup failed: ')
-    else if (res.pushError) showToast(res.pushError, 'Committed, push failed: ')
-    else showToast(`${plural(projects.length, 'project')}${res.changed ? '' : ' (no changes)'}${res.pushed ? ' · pushed' : ''}`, 'Backup: ')
+  // Asks first: the backup file is overwritten, so a wrong state could replace a good one.
+  askConfirm(`Overwrite backup with ${plural(projects.length, 'project')} and push?`, () => {
+    showToast('Saving backup…', '')
+    chrome.runtime.sendMessage({ type: 'backupProjects' }, onBackupResult)
   })
 }
 
+function onBackupResult(res: { ok?: boolean; noHost?: boolean; error?: string; pushError?: string; changed?: boolean; pushed?: boolean } | undefined): void {
+  if (res?.noHost) downloadProjects()
+  else if (!res?.ok) showToast(res?.error ?? 'unknown error', 'Backup failed: ')
+  else if (res.pushError) showToast(res.pushError, 'Committed, push failed: ')
+  else showToast(`${plural(projects.length, 'project')}${res.changed ? '' : ' (no changes)'}${res.pushed ? ' · pushed' : ''}`, 'Backup: ')
+}
+
+// Ctrl+Shift+E: plain JSON download, independent of the backup repo.
 function downloadProjects(): void {
+  if (projects.length === 0) {
+    showToast('Nothing to export', '')
+    return
+  }
   const blob = new Blob([JSON.stringify(projects, null, 2) + '\n'], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -621,6 +632,9 @@ function onKeydown(e: KeyboardEvent): void {
     e.preventDefault()
     const project = selectedProject()
     if (project) void addCurrentTab(project)
+  } else if (ctrl && e.key === 'E') {
+    e.preventDefault()
+    downloadProjects()
   } else if (ctrl && e.key === 'e') {
     e.preventDefault()
     backupProjects()
