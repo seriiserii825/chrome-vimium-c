@@ -35,6 +35,7 @@ import { findInAccess, resumeAccessSearch } from "./accesssearch";
 import { writeText, readText } from "./clipboard";
 import { startScroll, stopScroll, scrollToTop, scrollToBottom, saveScrollPos, goScrollPos } from "./scroll";
 import mappings from "../maps.csv";
+import projectsMappings from "../projects-map.csv";
 
 let session: HintSession | null = null;
 let tabSession: TabSwitchSession | null = null;
@@ -313,7 +314,7 @@ const actions: Record<Action, () => void> = {
     session = beginHints("h");
   },
   showHelp: () => {
-    showHelp(mappings);
+    showHelp([...mappings, ...projectsMappings]);
   },
   downloadImage: () => { session = beginHints("di"); },
   copyImage:     () => { session = beginHints("ci"); },

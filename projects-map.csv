@@ -1,0 +1,26 @@
+hotkey,action,description,group
+Escape,clearOrClose,Clear search query (or close panel if already empty),projects
+ArrowDown,selectNext,Select next row,projects
+^j,selectNext,Select next row,projects
+^n,selectNext,Select next row,projects
+ArrowUp,selectPrev,Select previous row,projects
+^k,selectPrev,Select previous row,projects
+^p,selectPrev,Select previous row,projects
+Enter,activateReplace,Open selected project (replace window tabs),projects
+⇧Enter,activateKeep,Open selected project (add to window),projects
+^Enter,activateWindow,Open selected project (new window),projects
+Tab,expandOrSelect,Expand project / select its tabs,projects
+⇧Tab,collapse,Collapse expanded project,projects
+ArrowRight,expand,Expand project (when caret is at end of query),projects
+ArrowLeft,collapse,Collapse project (when query is empty and caret at start),projects
+F2,renameProject,Rename selected project,projects
+Delete,deleteSelected,Delete selected project or tab (y/n confirm),projects
+^s,saveNewProject,Save current window's tabs as a new project,projects
+^u,updateProject,Replace selected project with current window's tabs,projects
+^a,addCurrentTab,Add current tab to selected project,projects
+^e,backupProjects,Backup all projects to git (native host) and push,projects
+^E,downloadProjects,Export all projects as a plain JSON download,projects
+^o,importProjects,Import projects from a JSON file,projects
+^i,restoreProjects,Import projects from the git backup (pulls first),projects
+y,confirmYes,Confirm pending action (delete / backup overwrite),projects
+n,confirmNo,Cancel pending confirmation,projects
