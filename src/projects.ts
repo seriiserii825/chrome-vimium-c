@@ -7,6 +7,8 @@ export interface ProjectTab {
   id?: number
   title: string
   url: string
+  // The tab that was focused when the project was saved — it gets focus again on open.
+  active?: boolean
 }
 
 export interface Project {
@@ -78,7 +80,7 @@ const NEW_TAB_URLS = new Set(['chrome://newtab/', 'chrome://new-tab-page/'])
 function savableTabs(tabs: WindowTab[]): ProjectTab[] {
   return tabs
     .filter((t) => !t.pinned && t.url && !t.url.startsWith('chrome-extension://') && !NEW_TAB_URLS.has(t.url))
-    .map((t, i) => ({ id: Date.now() + i, title: t.title || t.url, url: t.url }))
+    .map((t, i) => ({ id: Date.now() + i, title: t.title || t.url, url: t.url, ...(t.active ? { active: true } : {}) }))
 }
 
 function plural(n: number, word: string): string {
@@ -345,7 +347,10 @@ async function openProject(project: Project, openMode: OpenMode): Promise<void> 
   // Saved before messaging: in replace mode this very tab may be closed.
   await saveProjects()
   // Message first: in the popup, hiding closes the window.
-  chrome.runtime.sendMessage({ type: 'openProject', urls: project.items.map((t) => t.url), mode: openMode })
+  // No saved focus (e.g. Quick Tabs imports): last tab, which is where Quick Tabs ended up too.
+  const marked = project.items.findIndex((t) => t.active)
+  const activeIndex = marked !== -1 ? marked : project.items.length - 1
+  chrome.runtime.sendMessage({ type: 'openProject', urls: project.items.map((t) => t.url), activeIndex, mode: openMode })
   hideProjects()
 }
 
@@ -467,7 +472,7 @@ function parseProjects(data: unknown): Project[] {
       updated_at: typeof p.updated_at === 'number' ? p.updated_at : Date.now(),
       items: (p.items as unknown[])
         .filter((t): t is Record<string, unknown> => typeof t === 'object' && t !== null && typeof (t as Record<string, unknown>).url === 'string')
-        .map((t) => ({ id: typeof t.id === 'number' ? t.id : undefined, title: typeof t.title === 'string' ? t.title : (t.url as string), url: t.url as string })),
+        .map((t) => ({ id: typeof t.id === 'number' ? t.id : undefined, title: typeof t.title === 'string' ? t.title : (t.url as string), url: t.url as string, ...(t.active === true ? { active: true } : {}) })),
     }))
 }
 

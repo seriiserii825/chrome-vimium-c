@@ -6,7 +6,7 @@
   chrome.tabs.reload(tab.id);
 })();
 
-chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: string[]; mode?: string; currentTabId?: number; targetWindowId?: number; ratio?: number; tabId?: number; quality?: string }, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: string[]; activeIndex?: number; mode?: string; currentTabId?: number; targetWindowId?: number; ratio?: number; tabId?: number; quality?: string }, _sender, sendResponse) => {
   const type = msg.type;
 
   if (type === "searchHistory") {
@@ -33,8 +33,11 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: 
   if (type === "openProject" && msg.urls?.length) {
     (async () => {
       const urls = msg.urls!;
+      const activeIndex = msg.activeIndex ?? urls.length - 1;
       if (msg.mode === "window") {
-        await chrome.windows.create({ url: urls, focused: true });
+        const win = await chrome.windows.create({ url: urls, focused: true });
+        const target = win?.tabs?.[activeIndex];
+        if (target?.id) await chrome.tabs.update(target.id, { active: true });
         return;
       }
       const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -43,22 +46,27 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: 
       const free = open.filter(t => !t.pinned);
       const pinnedCount = open.length - free.length;
       const ids: number[] = [];
+      // Tab id of each project URL by position (missing if it failed to open)
+      const idByIndex: (number | undefined)[] = [];
       for (const url of urls) {
+        idByIndex.push(undefined);
         const i = free.findIndex(t => (t.url || t.pendingUrl) === url);
         if (i !== -1) {
           ids.push(free[i].id!);
+          idByIndex[idByIndex.length - 1] = free[i].id!;
           free.splice(i, 1);
           continue;
         }
         try {
           const tab = await chrome.tabs.create({ windowId, url, active: false });
           ids.push(tab.id!);
+          idByIndex[idByIndex.length - 1] = tab.id!;
         } catch {
           // e.g. file:// without access — skip that tab, open the rest
         }
       }
       if (!ids.length) return;
-      await chrome.tabs.update(ids[0], { active: true });
+      await chrome.tabs.update(idByIndex[activeIndex] ?? ids[ids.length - 1], { active: true });
       if (msg.mode === "replace") {
         if (free.length) await chrome.tabs.remove(free.map(t => t.id!));
         await chrome.tabs.move(ids, { index: pinnedCount });
