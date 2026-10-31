@@ -4,8 +4,10 @@
 Runs when the user presses Ctrl+E in the Projects panel: Chrome starts this script
 (chrome.runtime.sendNativeMessage from background.ts), passing {"projects": [...]}
 on stdin in the native messaging framing (4-byte little-endian length + JSON).
-It overwrites projects.json in BACKUP_DIR, commits if the content changed and
-pushes, then replies with the result so the panel can show it.
+It first does `git pull --ff-only` (so a push from another machine doesn't make
+ours a non-fast-forward reject; a pull failure is reported back but doesn't block
+the backup), then overwrites projects.json in BACKUP_DIR, commits if the content
+changed, and pushes, then replies with the result so the panel can show it.
 
 {"action": "restore"} (Ctrl+I) does the reverse: `git pull --ff-only` (to pick up a
 backup pushed from another machine), then replies with the projects from projects.json.
@@ -52,6 +54,24 @@ def git(*args: str) -> subprocess.CompletedProcess:
 def backup(projects: list, message: str | None) -> dict:
     os.makedirs(BACKUP_DIR, exist_ok=True)
     path = os.path.join(BACKUP_DIR, FILE_NAME)
+    is_repo = git("rev-parse", "--is-inside-work-tree").returncode == 0
+
+    # Pull first so a push from another machine doesn't make ours a non-fast-forward
+    # reject. If there's nothing to pull (or pulling fails), fall through and save/push
+    # as usual - pull_error is reported back but never blocks the backup.
+    pull_error = None
+    if is_repo and git("remote").stdout.strip():
+        try:
+            pull = subprocess.run(["git", "-C", BACKUP_DIR, "pull", "-q", "--ff-only"], capture_output=True,
+                                  text=True, stdin=subprocess.DEVNULL, timeout=60)
+            if pull.returncode != 0:
+                lines = (pull.stderr or pull.stdout).strip().splitlines()
+                pull_error = next((l for l in lines if l.startswith(("fatal:", "error:"))), lines[0] if lines else "pull failed")
+                log(f"pull failed: {pull_error}")
+        except subprocess.TimeoutExpired:
+            pull_error = "pull timed out"
+            log("pull timed out")
+
     content = json.dumps(projects, ensure_ascii=False, indent=2) + "\n"
 
     try:
@@ -67,7 +87,7 @@ def backup(projects: list, message: str | None) -> dict:
             f.write(content)
         os.replace(tmp, path)
 
-    if git("rev-parse", "--is-inside-work-tree").returncode != 0:
+    if not is_repo:
         log(f"saved {len(projects)} projects (not a git repo, no commit)")
         return {"ok": True, "changed": changed, "pushed": False}
 
@@ -79,25 +99,25 @@ def backup(projects: list, message: str | None) -> dict:
         commit = git("commit", "-q", "-m", commit_message, "--", FILE_NAME)
         if commit.returncode != 0:
             log(f"commit failed: {commit.stderr.strip() or commit.stdout.strip()}")
-            return {"ok": False, "error": "commit failed"}
+            return {"ok": False, "error": "commit failed", "pullError": pull_error}
 
     # Push even without changes: retries commits left behind by an earlier failed push.
     if not git("remote").stdout.strip():
-        return {"ok": True, "changed": changed, "pushed": False}
+        return {"ok": True, "changed": changed, "pushed": False, "pullError": pull_error}
     try:
         push = subprocess.run(["git", "-C", BACKUP_DIR, "push", "-q"], capture_output=True, text=True,
                               stdin=subprocess.DEVNULL, timeout=60)
     except subprocess.TimeoutExpired:
         log("push timed out")
-        return {"ok": True, "changed": changed, "pushed": False, "pushError": "timeout"}
+        return {"ok": True, "changed": changed, "pushed": False, "pushError": "timeout", "pullError": pull_error}
     if push.returncode != 0:
         err = (push.stderr or push.stdout).strip()
         log(f"push failed: {err}")
         lines = err.splitlines()
         reason = next((l for l in lines if l.startswith(("fatal:", "error:"))), lines[0] if lines else "push failed")
-        return {"ok": True, "changed": changed, "pushed": False, "pushError": reason}
+        return {"ok": True, "changed": changed, "pushed": False, "pushError": reason, "pullError": pull_error}
     log(f"backup {len(projects)} projects, changed={changed}, pushed")
-    return {"ok": True, "changed": changed, "pushed": True}
+    return {"ok": True, "changed": changed, "pushed": True, "pullError": pull_error}
 
 
 # Chrome rejects host replies over 1 MB.

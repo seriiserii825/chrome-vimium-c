@@ -500,7 +500,7 @@ function backupProjects(): void {
   })
 }
 
-function onBackupResult(res: { ok?: boolean; noHost?: boolean; error?: string; pushError?: string; changed?: boolean; pushed?: boolean } | undefined): void {
+function onBackupResult(res: { ok?: boolean; noHost?: boolean; error?: string; pushError?: string; pullError?: string; changed?: boolean; pushed?: boolean } | undefined): void {
   if (res?.noHost) {
     downloadProjects()
     void clearDirty()
@@ -508,8 +508,9 @@ function onBackupResult(res: { ok?: boolean; noHost?: boolean; error?: string; p
     showToast(res?.error ?? 'unknown error', 'Backup failed: ')
   } else {
     void clearDirty()
-    if (res.pushError) showToast(res.pushError, 'Committed, push failed: ')
-    else showToast(`${plural(projects.length, 'project')}${res.changed ? '' : ' (no changes)'}${res.pushed ? ' · pushed' : ''}`, 'Backup: ')
+    const pullNote = res.pullError ? ` (pull failed: ${res.pullError})` : ''
+    if (res.pushError) showToast(`${res.pushError}${pullNote}`, 'Committed, push failed: ')
+    else showToast(`${plural(projects.length, 'project')}${res.changed ? '' : ' (no changes)'}${res.pushed ? ' · pushed' : ''}${pullNote}`, 'Backup: ')
   }
 }
 
