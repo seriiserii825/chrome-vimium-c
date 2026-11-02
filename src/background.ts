@@ -6,7 +6,7 @@
   chrome.tabs.reload(tab.id);
 })();
 
-chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: string[]; activeIndex?: number; mode?: string; currentTabId?: number; targetWindowId?: number; ratio?: number; tabId?: number; quality?: string; message?: string; since?: string; action?: string }, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: string[]; activeIndex?: number; mode?: string; currentTabId?: number; targetWindowId?: number; ratio?: number; tabId?: number; quality?: string; message?: string; since?: string; action?: string; left?: boolean }, _sender, sendResponse) => {
   const type = msg.type;
 
   // An overlay action pressed inside an iframe: run it in the tab's top frame instead.
@@ -287,7 +287,9 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: 
   }
 
   if (type === "navigateTo" && msg.url) {
-    chrome.tabs.create({ url: msg.url, active: true });
+    // left: right next to the sender's tab, on its left (takes its index, pushing it right).
+    const index = msg.left ? _sender.tab?.index : undefined;
+    chrome.tabs.create({ url: msg.url, active: true, index });
     return;
   }
 

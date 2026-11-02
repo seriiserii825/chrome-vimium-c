@@ -398,7 +398,7 @@ const actions: Record<Action, () => void> = {
   goWpAdmin: () => {
     const postId = extractWpPostId();
     if (!postId) { showToast("WP post id not found", ""); return; }
-    chrome.runtime.sendMessage({ type: "navigateTo", url: `${window.location.origin}/wp-admin/post.php?post=${postId}&action=edit` });
+    chrome.runtime.sendMessage({ type: "navigateTo", url: `${window.location.origin}/wp-admin/post.php?post=${postId}&action=edit`, left: true });
   },
   goAdminLogin: () => { void goAdminLogin(); },
   yankPageId: () => {
