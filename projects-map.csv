@@ -18,6 +18,7 @@ Delete,deleteSelected,Delete selected project or tab (y/n confirm),projects
 ^s,saveNewProject,Save current window's tabs as a new project,projects
 ^u,updateProject,Replace selected project with current window's tabs,projects
 ^a,addCurrentTab,Add current tab to selected project,projects
+^l,addUrl,Add a URL by hand to selected project (then its title),projects
 ^e,backupProjects,Backup all projects to git (native host) and push,projects
 ^E,downloadProjects,Export all projects as a plain JSON download,projects
 ^o,importProjects,Import projects from a JSON file,projects

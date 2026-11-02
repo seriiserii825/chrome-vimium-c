@@ -31,6 +31,8 @@ type Mode =
   | { kind: 'search' }
   | { kind: 'name'; query: string }
   | { kind: 'rename'; projectId: number; query: string }
+  // Ctrl+L: add a URL by hand — first the URL, then its title (prefilled with the host).
+  | { kind: 'addUrl'; projectId: number; query: string; url: string | null }
   | { kind: 'confirm'; message: string; run: () => void }
   | { kind: 'choice'; message: string; options: ChoiceOption[] }
 
@@ -329,6 +331,11 @@ function renderFooter(): void {
     mode.options.forEach((o) => footer!.appendChild(kbd(o.key, o.label)))
     return
   }
+  if (mode.kind === 'addUrl' && !mode.url) {
+    footer.appendChild(kbd('↵', 'next: title'))
+    footer.appendChild(kbd('Esc', 'cancel'))
+    return
+  }
   if (mode.kind !== 'search') {
     footer.appendChild(kbd('↵', 'save'))
     footer.appendChild(kbd('Esc', 'cancel'))
@@ -347,6 +354,7 @@ function renderFooter(): void {
     footer.appendChild(kbd('F2', 'rename'))
     footer.appendChild(kbd('^U', 'update'))
     footer.appendChild(kbd('^A', 'add tab'))
+    footer.appendChild(kbd('^L', 'add url'))
     footer.appendChild(kbd('Del', 'delete'))
   }
   footer.appendChild(kbd('^S', 'save new'))
@@ -363,6 +371,12 @@ function render(): void {
     pill.textContent = mode.kind === 'name' ? 'New project' : 'Rename'
     pill.style.display = ''
     input.placeholder = 'Project name…'
+  } else if (mode.kind === 'addUrl') {
+    const { projectId } = mode
+    const target = projects.find((p) => p.id === projectId)
+    pill.textContent = `${mode.url ? 'Title' : 'Add URL'} → ${target?.title ?? ''}`
+    pill.style.display = ''
+    input.placeholder = mode.url ? 'Title…' : 'https://… or example.com/path'
   } else {
     pill.style.display = 'none'
     input.placeholder = 'Search projects…'
@@ -549,6 +563,56 @@ function deleteSelected(): void {
     await markDirty(`delete: ${project.title}`)
     showToast(`“${project.title}” deleted`, '')
   })
+}
+
+// "example.com/path" → "https://example.com/path"; null if it isn't an http(s) URL.
+function normalizeUrl(text: string): string | null {
+  const value = text.trim()
+  if (!value || /\s/.test(value)) return null
+  const candidate = /^[a-z][a-z\d+.-]*:/i.test(value) ? value : `https://${value}`
+  try {
+    const url = new URL(candidate)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+    if (url.hostname !== 'localhost' && !url.hostname.includes('.')) return null
+    return url.href
+  } catch {
+    return null
+  }
+}
+
+// Ctrl+L, step 1: validate the URL and ask for a title; step 2: add the tab.
+async function commitAddUrl(): Promise<void> {
+  if (mode.kind !== 'addUrl') return
+  const { projectId, query } = mode
+  if (!mode.url) {
+    const url = normalizeUrl(input!.value)
+    if (!url) {
+      showToast('Not a URL', '')
+      return
+    }
+    mode = { ...mode, url }
+    input!.value = hostname(url)
+    render()
+    input!.select()
+    return
+  }
+  const { url } = mode
+  const title = input!.value.trim() || url
+  const added = await mutate((list) => {
+    const p = byId(list, projectId)
+    if (!p || p.items.some((t) => t.url === url)) return null
+    p.items.push({ id: Date.now(), title, url })
+    p.updated_at = Date.now()
+    return p.title
+  })
+  backToSearch(query)
+  selectProject(projectId)
+  if (!added) {
+    showToast('Already in this project', '')
+    return
+  }
+  await markDirty(`update: ${added}`)
+  showToast(`${title} → “${added}”`, 'Added ')
 }
 
 async function commitName(): Promise<void> {
@@ -833,6 +897,19 @@ function onKeydown(e: KeyboardEvent): void {
     return
   }
 
+  if (mode.kind === 'addUrl') {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      void commitAddUrl()
+    } else if (isEscape) {
+      e.preventDefault()
+      const { query, projectId } = mode
+      backToSearch(query)
+      selectProject(projectId)
+    }
+    return
+  }
+
   if (mode.kind === 'name' || mode.kind === 'rename') {
     if (e.key === 'Enter') {
       e.preventDefault()
@@ -898,6 +975,13 @@ function onKeydown(e: KeyboardEvent): void {
     e.preventDefault()
     const project = selectedProject()
     if (project) void addCurrentTab(project)
+  } else if (ctrl && e.code === 'KeyL') {
+    e.preventDefault()
+    const project = selectedProject()
+    if (!project) return
+    mode = { kind: 'addUrl', projectId: project.id, query: input!.value, url: null }
+    input!.value = ''
+    render()
   } else if (ctrl && e.code === 'KeyE') {
     // By physical key + Shift, not e.key: CapsLock (or a non-Latin layout) would turn
     // a plain Ctrl+E backup into the export.

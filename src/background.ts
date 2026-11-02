@@ -6,8 +6,16 @@
   chrome.tabs.reload(tab.id);
 })();
 
-chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: string[]; activeIndex?: number; mode?: string; currentTabId?: number; targetWindowId?: number; ratio?: number; tabId?: number; quality?: string; message?: string; since?: string }, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: string[]; activeIndex?: number; mode?: string; currentTabId?: number; targetWindowId?: number; ratio?: number; tabId?: number; quality?: string; message?: string; since?: string; action?: string }, _sender, sendResponse) => {
   const type = msg.type;
+
+  // An overlay action pressed inside an iframe: run it in the tab's top frame instead.
+  if (type === "runInTopFrame" && msg.action && _sender.tab?.id !== undefined) {
+    chrome.tabs.sendMessage(_sender.tab.id, { type: "runAction", action: msg.action }, { frameId: 0 }, (res) => {
+      sendResponse({ ok: !chrome.runtime.lastError && !!res?.ok });
+    });
+    return true;
+  }
 
   if (type === "searchHistory") {
     chrome.history.search({ text: "", maxResults: 5000, startTime: 0 }, (results) => {

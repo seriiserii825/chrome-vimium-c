@@ -558,10 +558,36 @@ function clearCount(): void {
   }
 }
 
+// Panels and overlays open in the top frame: inside an iframe they'd be clipped to it.
+// Hints, scrolling, find etc. stay in the frame they were pressed in.
+const topFrameActions = new Set<Action>([
+  "showProjects", "saveProject", "showHelp", "showHistory", "goToTab",
+  "showSeoInfo", "showSeoHeadings", "editUrlCurrentTab", "editUrlNewTab",
+]);
+
 function dispatchAction(action: Action): void {
   currentCount = countPrefix ? Math.max(1, parseInt(countPrefix, 10)) : 1;
   clearCount();
+  if (window !== window.top && topFrameActions.has(action)) {
+    // Background relays it to frame 0; if that fails (no content script there), run here.
+    chrome.runtime.sendMessage({ type: "runInTopFrame", action }, (res) => {
+      if (chrome.runtime.lastError || !res?.ok) actions[action]();
+    });
+    return;
+  }
   actions[action]();
+}
+
+if (window === window.top) {
+  chrome.runtime.onMessage.addListener((msg: { type?: string; action?: string }, _sender, sendResponse) => {
+    if (msg.type !== "runAction" || !msg.action || !topFrameActions.has(msg.action as Action)) return;
+    // Keyboard focus is still inside the iframe: take it back, or keys typed into the
+    // overlay (tab switcher labels etc.) would go to the frame.
+    if (document.activeElement?.tagName === "IFRAME") (document.activeElement as HTMLElement).blur();
+    window.focus();
+    actions[msg.action as Action]();
+    sendResponse({ ok: true });
+  });
 }
 
 function isEditing(): boolean {
