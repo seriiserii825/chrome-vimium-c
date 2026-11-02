@@ -817,12 +817,12 @@ function onKeydown(e: KeyboardEvent): void {
     e.preventDefault()
     const project = selectedProject()
     if (project) void addCurrentTab(project)
-  } else if (ctrl && e.key === 'E') {
+  } else if (ctrl && e.code === 'KeyE') {
+    // By physical key + Shift, not e.key: CapsLock (or a non-Latin layout) would turn
+    // a plain Ctrl+E backup into the export.
     e.preventDefault()
-    downloadProjects()
-  } else if (ctrl && e.key === 'e') {
-    e.preventDefault()
-    backupProjects()
+    if (e.shiftKey) downloadProjects()
+    else backupProjects()
   } else if (ctrl && e.key === 'o') {
     e.preventDefault()
     importProjects()
