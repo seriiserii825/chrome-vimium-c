@@ -6,7 +6,7 @@
   chrome.tabs.reload(tab.id);
 })();
 
-chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: string[]; activeIndex?: number; mode?: string; currentTabId?: number; targetWindowId?: number; ratio?: number; tabId?: number; quality?: string; message?: string }, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: string[]; activeIndex?: number; mode?: string; currentTabId?: number; targetWindowId?: number; ratio?: number; tabId?: number; quality?: string; message?: string; since?: string }, _sender, sendResponse) => {
   const type = msg.type;
 
   if (type === "searchHistory") {
@@ -19,24 +19,17 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: 
     return true;
   }
 
-  // Manual projects backup (Ctrl+E in the panel) through the native host, see native/.
-  if (type === "backupProjects") {
+  // Projects backup through the native host (see native/). The host always gets the
+  // current bs-projects; Ctrl+E sends backupCheck then backupProjects, Ctrl+I restoreProjects.
+  if (type === "backupCheck" || type === "backupProjects" || type === "restoreProjects") {
     chrome.storage.local.get("bs-projects", (res) => {
-      chrome.runtime.sendNativeMessage("com.bs.vimium_projects", { projects: res["bs-projects"] ?? [], message: msg.message }, (reply) => {
-        if (chrome.runtime.lastError) sendResponse({ ok: false, noHost: true, error: chrome.runtime.lastError.message });
-        else sendResponse(reply);
-      });
-    });
-    return true;
-  }
-
-  // Ctrl+I: native host pulls the backup repo and returns projects.json, unless it
-  // matches what's already stored locally (current bs-projects is sent along so the
-  // host can tell).
-  if (type === "restoreProjects") {
-    chrome.storage.local.get("bs-projects", (res) => {
-      chrome.runtime.sendNativeMessage("com.bs.vimium_projects", { action: "restore", projects: res["bs-projects"] ?? [] }, (reply) => {
-        if (chrome.runtime.lastError) sendResponse({ ok: false, error: "backup host not installed (native/install.sh)" });
+      const projects = res["bs-projects"] ?? [];
+      const payload =
+        type === "backupCheck" ? { action: "check", projects, since: msg.since }
+        : type === "restoreProjects" ? { action: "restore", projects }
+        : { projects, message: msg.message };
+      chrome.runtime.sendNativeMessage("com.bs.vimium_projects", payload, (reply) => {
+        if (chrome.runtime.lastError) sendResponse({ ok: false, noHost: true, error: "backup host not installed (native/install.sh)" });
         else sendResponse(reply);
       });
     });

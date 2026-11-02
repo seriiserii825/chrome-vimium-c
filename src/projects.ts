@@ -32,6 +32,13 @@ type Mode =
   | { kind: 'name'; query: string }
   | { kind: 'rename'; projectId: number; query: string }
   | { kind: 'confirm'; message: string; run: () => void }
+  | { kind: 'choice'; message: string; options: ChoiceOption[] }
+
+interface ChoiceOption {
+  key: string
+  label: string
+  run: () => void | Promise<void>
+}
 
 type Row =
   | { kind: 'project'; project: Project; tabs: ProjectTab[] | null }
@@ -44,6 +51,9 @@ const STORAGE_KEY = 'bs-projects'
 // git commit message on the next Ctrl+E. Persisted so it survives across tabs/popup,
 // since `projects` itself is reloaded fresh from storage on every showProjects() call.
 const DIRTY_KEY = 'bs-projects-dirty'
+// HEAD of the backup repo after this machine's last backup or restore. Ctrl+E asks the
+// host whether projects.json changed in git since then (= pushed from another machine).
+const SYNCED_KEY = 'bs-projects-synced'
 
 let backdrop: HTMLElement | null = null
 let input: HTMLInputElement | null = null
@@ -54,6 +64,7 @@ let footer: HTMLElement | null = null
 
 let projects: Project[] = []
 let dirtyMessage: string | null = null
+let syncedHead: string | null = null
 let rows: Row[] = []
 let selectedIndex = 0
 let expanded = new Set<number>()
@@ -80,6 +91,12 @@ async function markDirty(message: string): Promise<void> {
 async function clearDirty(): Promise<void> {
   dirtyMessage = null
   await chrome.storage.local.remove(DIRTY_KEY)
+}
+
+async function setSynced(head: string | undefined): Promise<void> {
+  if (!head) return
+  syncedHead = head
+  await chrome.storage.local.set({ [SYNCED_KEY]: head })
 }
 
 function getWindowTabs(): Promise<WindowTab[]> {
@@ -258,11 +275,16 @@ function kbd(keys: string, label: string): HTMLElement {
 function renderFooter(): void {
   if (!footer) return
   footer.innerHTML = ''
-  footer.classList.toggle('bs-pj-footer-confirm', mode.kind === 'confirm')
+  footer.classList.toggle('bs-pj-footer-confirm', mode.kind === 'confirm' || mode.kind === 'choice')
   if (mode.kind === 'confirm') {
     footer.appendChild(el('span', 'bs-pj-confirm-msg', mode.message))
     footer.appendChild(kbd('y', 'yes'))
     footer.appendChild(kbd('n', 'no'))
+    return
+  }
+  if (mode.kind === 'choice') {
+    footer.appendChild(el('span', 'bs-pj-confirm-msg', mode.message))
+    mode.options.forEach((o) => footer!.appendChild(kbd(o.key, o.label)))
     return
   }
   if (mode.kind !== 'search') {
@@ -303,7 +325,7 @@ function render(): void {
     pill.style.display = 'none'
     input.placeholder = 'Search projects…'
   }
-  input.readOnly = mode.kind === 'confirm'
+  input.readOnly = mode.kind === 'confirm' || mode.kind === 'choice'
 
   rows = buildRows()
   selectedIndex = Math.max(0, Math.min(rows.length - 1, selectedIndex))
@@ -485,32 +507,97 @@ function activate(openMode: OpenMode): void {
   }
 }
 
-// Ctrl+E: the native host (native/projects_backup.py) overwrites projects.json in the
-// backup repo, commits (using the last edit's project name as the message, via
-// markDirty/dirtyMessage) and pushes. Without the host installed, falls back to a download.
+// Ctrl+E: first `backupCheck` — the host pulls and tells whether projects.json changed in
+// git since this machine last synced (i.e. another machine pushed). If not, a plain y/n
+// overwrite; if so, a choice: merge their changes in first, or overwrite them. Then the
+// host overwrites projects.json, commits (message from markDirty/dirtyMessage) and pushes.
+// Without the host installed, falls back to a download.
 function backupProjects(): void {
   if (!dirtyMessage) {
-    showToast('Nothing to export', '')
+    showToast('Nothing to back up', '')
     return
   }
-  // Asks first: the backup file is overwritten, so a wrong state could replace a good one.
-  askConfirm(`Overwrite backup with ${plural(projects.length, 'project')} and push?`, () => {
-    showToast('Saving backup…', '')
-    chrome.runtime.sendMessage({ type: 'backupProjects', message: dirtyMessage }, onBackupResult)
+  const message = dirtyMessage
+  showToast('Checking backup…', '')
+  chrome.runtime.sendMessage({ type: 'backupCheck', since: syncedHead }, (res) => {
+    if (res?.noHost) {
+      downloadProjects()
+      void clearDirty()
+      return
+    }
+    if (!res?.ok) {
+      showToast(res?.error ?? 'unknown error', 'Backup failed: ')
+      return
+    }
+    const pullNote = res.pullError ? ` (pull failed: ${res.pullError})` : ''
+    if (!res.remoteChanged) {
+      // Asks first: the backup file is overwritten, so a wrong state could replace a good one.
+      askConfirm(`Overwrite backup with ${plural(projects.length, 'project')} and push?${pullNote}`, () => sendBackup(message))
+      return
+    }
+    let remote: Project[]
+    try {
+      remote = parseProjects(res.projects)
+    } catch {
+      showToast('Invalid projects.json in backup', '')
+      return
+    }
+    askChoice(`Backup in git has changes from another machine (${plural(countDiffering(remote), 'project')} differ)`, [
+      { key: 'm', label: 'merge — import them, then backup', run: async () => {
+        await mergeNewer(remote)
+        sendBackup(`merge: ${message}`)
+      } },
+      { key: 'o', label: 'overwrite — keep only this machine', run: () => sendBackup(message) },
+      { key: 'n', label: 'cancel', run: () => {} },
+    ])
   })
 }
 
-function onBackupResult(res: { ok?: boolean; noHost?: boolean; error?: string; pushError?: string; pullError?: string; changed?: boolean; pushed?: boolean } | undefined): void {
+function askChoice(message: string, options: ChoiceOption[]): void {
+  setMode({ kind: 'choice', message, options })
+}
+
+function sendBackup(message: string): void {
+  showToast('Saving backup…', '')
+  chrome.runtime.sendMessage({ type: 'backupProjects', message }, onBackupResult)
+}
+
+// Projects present on only one side, or different on both.
+function countDiffering(remote: Project[]): number {
+  const local = new Map(projects.map((p) => [p.id, JSON.stringify(p)]))
+  const remoteIds = new Set(remote.map((p) => p.id))
+  const changed = remote.filter((p) => local.get(p.id) !== JSON.stringify(p)).length
+  return changed + projects.filter((p) => !remoteIds.has(p.id)).length
+}
+
+// Merge for Ctrl+E: projects only in git are added; for a project on both sides the
+// newer updated_at wins. A project deleted here but still in git comes back.
+async function mergeNewer(remote: Project[]): Promise<void> {
+  const byId = new Map(projects.map((p) => [p.id, p]))
+  for (const p of remote) {
+    const mine = byId.get(p.id)
+    if (!mine || p.updated_at > mine.updated_at) byId.set(p.id, p)
+  }
+  projects = [...byId.values()]
+  await saveProjects()
+}
+
+function onBackupResult(res: { ok?: boolean; noHost?: boolean; error?: string; pushError?: string; pullError?: string; changed?: boolean; pushed?: boolean; head?: string } | undefined): void {
   if (res?.noHost) {
     downloadProjects()
     void clearDirty()
   } else if (!res?.ok) {
     showToast(res?.error ?? 'unknown error', 'Backup failed: ')
   } else {
-    void clearDirty()
+    void setSynced(res.head)
     const pullNote = res.pullError ? ` (pull failed: ${res.pullError})` : ''
-    if (res.pushError) showToast(`${res.pushError}${pullNote}`, 'Committed, push failed: ')
-    else showToast(`${plural(projects.length, 'project')}${res.changed ? '' : ' (no changes)'}${res.pushed ? ' · pushed' : ''}${pullNote}`, 'Backup: ')
+    // Stays dirty when the push failed, so the next Ctrl+E retries it.
+    if (res.pushError) {
+      showToast(`${res.pushError}${pullNote}`, 'Committed, push failed: ')
+      return
+    }
+    void clearDirty()
+    showToast(`${plural(projects.length, 'project')}${res.changed ? '' : ' (no changes)'}${res.pushed ? ' · pushed' : ''}${pullNote}`, 'Backup: ')
   }
 }
 
@@ -592,6 +679,7 @@ function restoreProjects(): void {
       return
     }
     if (res.upToDate) {
+      void setSynced(res.head)
       showToast('Already up to date', '')
       return
     }
@@ -607,7 +695,10 @@ function restoreProjects(): void {
       return
     }
     const pullNote = res.pullError ? ` (pull failed: ${res.pullError}, using local copy)` : ''
-    askConfirm(`Import ${plural(incoming.length, 'project')} from backup${pullNote}? Same ids are replaced, others kept.`, () => mergeProjects(incoming))
+    askConfirm(`Import ${plural(incoming.length, 'project')} from backup${pullNote}? Same ids are replaced, others kept.`, async () => {
+      await mergeProjects(incoming)
+      await setSynced(res.head)
+    })
   })
 }
 
@@ -627,6 +718,15 @@ function onKeydown(e: KeyboardEvent): void {
     } else if (e.key === 'n' || isEscape) {
       backToSearch(input!.value)
     }
+    return
+  }
+
+  if (mode.kind === 'choice') {
+    e.preventDefault()
+    const option = isEscape ? mode.options.find((o) => o.key === 'n') : mode.options.find((o) => o.key === e.key)
+    if (!option) return
+    backToSearch(input!.value)
+    void Promise.resolve(option.run()).then(() => render())
     return
   }
 
@@ -717,7 +817,9 @@ export async function showProjects(startNaming = false, onHideCb: (() => void) |
   if (backdrop) return
   onHide = onHideCb
   projects = await loadProjects()
-  dirtyMessage = ((await chrome.storage.local.get(DIRTY_KEY))[DIRTY_KEY] as string | undefined) ?? null
+  const stored = await chrome.storage.local.get([DIRTY_KEY, SYNCED_KEY])
+  dirtyMessage = (stored[DIRTY_KEY] as string | undefined) ?? null
+  syncedHead = (stored[SYNCED_KEY] as string | undefined) ?? null
   mode = startNaming ? { kind: 'name', query: '' } : { kind: 'search' }
   selectedIndex = 0
   expanded = new Set()

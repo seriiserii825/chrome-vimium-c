@@ -24,3 +24,5 @@ Delete,deleteSelected,Delete selected project or tab (y/n confirm),projects
 ^i,restoreProjects,Import projects from the git backup (pulls first),projects
 y,confirmYes,Confirm pending action (delete / backup overwrite),projects
 n,confirmNo,Cancel pending confirmation,projects
+m,choiceMerge,Backup: merge changes from another machine then push,projects
+o,choiceOverwrite,Backup: overwrite git with this machine's projects,projects
