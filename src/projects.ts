@@ -562,24 +562,35 @@ function sendBackup(message: string): void {
   chrome.runtime.sendMessage({ type: 'backupProjects', message }, onBackupResult)
 }
 
-// Projects present on only one side, or different on both.
+// updated_at changes on every open, so it doesn't count as a difference.
+function contentKey(p: Project): string {
+  return JSON.stringify({ ...p, updated_at: 0 })
+}
+
+// Projects present on only one side, or with different content on both.
 function countDiffering(remote: Project[]): number {
-  const local = new Map(projects.map((p) => [p.id, JSON.stringify(p)]))
+  const local = new Map(projects.map((p) => [p.id, contentKey(p)]))
   const remoteIds = new Set(remote.map((p) => p.id))
-  const changed = remote.filter((p) => local.get(p.id) !== JSON.stringify(p)).length
+  const changed = remote.filter((p) => local.get(p.id) !== contentKey(p)).length
   return changed + projects.filter((p) => !remoteIds.has(p.id)).length
 }
 
-// Merge for Ctrl+E: projects only in git are added; for a project on both sides the
-// newer updated_at wins. A project deleted here but still in git comes back.
-async function mergeNewer(remote: Project[]): Promise<void> {
+// Merge for Ctrl+E `m` and Ctrl+I: projects only in git are added; for a project on both
+// sides the newer updated_at wins. A project deleted here but still in git comes back.
+// Returns how many projects were taken from git.
+async function mergeNewer(remote: Project[]): Promise<number> {
   const byId = new Map(projects.map((p) => [p.id, p]))
+  let taken = 0
   for (const p of remote) {
     const mine = byId.get(p.id)
-    if (!mine || p.updated_at > mine.updated_at) byId.set(p.id, p)
+    if (!mine || p.updated_at > mine.updated_at) {
+      byId.set(p.id, p)
+      taken++
+    }
   }
   projects = [...byId.values()]
   await saveProjects()
+  return taken
 }
 
 function onBackupResult(res: { ok?: boolean; noHost?: boolean; error?: string; pushError?: string; pullError?: string; changed?: boolean; pushed?: boolean; head?: string } | undefined): void {
@@ -670,7 +681,8 @@ async function mergeProjects(incoming: Project[]): Promise<void> {
   input?.focus()
 }
 
-// Ctrl+I: import from the backup repo (native host pulls it first), merged like Ctrl+O.
+// Ctrl+I: import from the backup repo (native host pulls it first). Merged like `m` in
+// Ctrl+E — the newer updated_at wins — so it can't wipe edits not backed up yet.
 function restoreProjects(): void {
   showToast('Loading backup…', '')
   chrome.runtime.sendMessage({ type: 'restoreProjects' }, (res) => {
@@ -695,9 +707,19 @@ function restoreProjects(): void {
       return
     }
     const pullNote = res.pullError ? ` (pull failed: ${res.pullError}, using local copy)` : ''
-    askConfirm(`Import ${plural(incoming.length, 'project')} from backup${pullNote}? Same ids are replaced, others kept.`, async () => {
-      await mergeProjects(incoming)
+    askConfirm(`Import from backup${pullNote}: ${plural(countDiffering(incoming), 'project')} differ, the newer version of each wins. Continue?`, async () => {
+      const remoteById = new Map(incoming.map((p) => [p.id, p]))
+      // Something here that git doesn't have yet → the next Ctrl+E has work to do.
+      const localAhead = projects.some((p) => {
+        const r = remoteById.get(p.id)
+        return !r || p.updated_at > r.updated_at
+      })
+      const taken = await mergeNewer(incoming)
       await setSynced(res.head)
+      if (!localAhead) await clearDirty()
+      else if (!dirtyMessage) await markDirty(`merge: ${plural(taken, 'project')} from backup`)
+      showToast(`${plural(taken, 'project')} from backup`, 'Imported ')
+      render()
     })
   })
 }

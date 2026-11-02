@@ -16,7 +16,8 @@ Actions (Ctrl+E runs check, then backup; Ctrl+I runs restore):
       Backup: overwrite projects.json, commit if the content changed (message = the
       extension's description of the edit), push (also retries unpushed commits).
   {"action": "restore", "projects": [...]}
-      Replies with projects.json, unless it already equals the extension's projects.
+      Replies with projects.json, unless it already equals the extension's projects
+      (ignoring updated_at, which changes on every open).
 
 Override the target with VIMIUM_PROJECTS_DIR. Log: ~/.cache/vimium-projects-backup.log
 """
@@ -107,6 +108,12 @@ def read_backup() -> list | None:
         return None
 
 
+def same_content(a: list, b: list) -> bool:
+    """Equal ignoring updated_at, which the extension bumps every time a project is opened."""
+    strip = lambda ps: [{k: v for k, v in p.items() if k != "updated_at"} if isinstance(p, dict) else p for p in ps]
+    return strip(a) == strip(b)
+
+
 def with_projects(reply: dict, projects: list) -> dict:
     reply["projects"] = projects
     if len(json.dumps(reply)) > MAX_REPLY:
@@ -118,7 +125,7 @@ def check(local_projects: list, since: str | None) -> dict:
     pull_error = pull()
     reply = {"ok": True, "remoteChanged": False, "head": head(), "pullError": pull_error}
     remote = read_backup()
-    if remote is None or remote == local_projects:
+    if remote is None or same_content(remote, local_projects):
         return reply
     # Known last sync: changed only if a commit since then touched projects.json.
     # Unknown (first backup from this machine, or the sha is gone): the file differs,
@@ -183,7 +190,7 @@ def restore(local_projects: list) -> dict:
         return {"ok": False, "error": f"no {FILE_NAME} in {BACKUP_DIR}"}
     reply = {"ok": True, "head": head(), "pullError": pull_error}
     # Nothing changed vs. what the extension already has: skip the merge/import prompt.
-    if remote == local_projects:
+    if same_content(remote, local_projects):
         log("restore: already up to date")
         reply["upToDate"] = True
         return reply
