@@ -47,10 +47,13 @@ type Row =
 
 // chrome.storage, not localStorage: projects must be the same on every site.
 const STORAGE_KEY = 'bs-projects'
-// Set by any meaningful edit (create/rename/update/add tab/delete/import), used as the
-// git commit message on the next Ctrl+E. Persisted so it survives across tabs/popup,
-// since `projects` itself is reloaded fresh from storage on every showProjects() call.
+// Every meaningful edit since the last successful backup (create/rename/update/add tab/
+// delete/import), e.g. ["rename: A", "delete: B"]; becomes the commit message on the next
+// Ctrl+E. Persisted so edits from other tabs/the popup add up. Older versions stored a
+// single string — readDirty accepts both.
 const DIRTY_KEY = 'bs-projects-dirty'
+// Commit body lists at most this many changes.
+const MAX_LISTED_CHANGES = 50
 // HEAD of the backup repo after this machine's last backup or restore. Ctrl+E asks the
 // host whether projects.json changed in git since then (= pushed from another machine).
 const SYNCED_KEY = 'bs-projects-synced'
@@ -63,7 +66,7 @@ let list: HTMLElement | null = null
 let footer: HTMLElement | null = null
 
 let projects: Project[] = []
-let dirtyMessage: string | null = null
+let dirtyChanges: string[] = []
 let syncedHead: string | null = null
 let rows: Row[] = []
 let selectedIndex = 0
@@ -98,14 +101,32 @@ function byId(list: Project[], id: number): Project | undefined {
   return list.find((p) => p.id === id)
 }
 
-async function markDirty(message: string): Promise<void> {
-  dirtyMessage = message
-  await chrome.storage.local.set({ [DIRTY_KEY]: message })
+function readDirty(value: unknown): string[] {
+  if (typeof value === 'string') return [value]
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []
+}
+
+// Re-reads storage first, so changes made from another tab aren't dropped. The same
+// change twice ("update: A" after two Ctrl+A) is listed once.
+async function markDirty(change: string): Promise<void> {
+  const changes = readDirty((await chrome.storage.local.get(DIRTY_KEY))[DIRTY_KEY])
+  if (!changes.includes(change)) changes.push(change)
+  dirtyChanges = changes
+  await chrome.storage.local.set({ [DIRTY_KEY]: changes })
 }
 
 async function clearDirty(): Promise<void> {
-  dirtyMessage = null
+  dirtyChanges = []
   await chrome.storage.local.remove(DIRTY_KEY)
+}
+
+// One change → it is the whole message. Several → "first (+N more)", then every change
+// as a list in the commit body.
+function commitMessage(changes: string[]): string {
+  if (changes.length === 1) return changes[0]
+  const listed = changes.slice(0, MAX_LISTED_CHANGES).map((c) => `- ${c}`)
+  if (changes.length > MAX_LISTED_CHANGES) listed.push(`- … and ${changes.length - MAX_LISTED_CHANGES} more`)
+  return `${changes[0]} (+${changes.length - 1} more)\n\n${listed.join('\n')}`
 }
 
 async function setSynced(head: string | undefined): Promise<void> {
@@ -538,14 +559,15 @@ function activate(openMode: OpenMode): void {
 // Ctrl+E: first `backupCheck` — the host pulls and tells whether projects.json changed in
 // git since this machine last synced (i.e. another machine pushed). If not, a plain y/n
 // overwrite; if so, a choice: merge their changes in first, or overwrite them. Then the
-// host overwrites projects.json, commits (message from markDirty/dirtyMessage) and pushes.
+// host overwrites projects.json, commits (message from markDirty/commitMessage) and pushes.
 // Without the host installed, falls back to a download.
 function backupProjects(): void {
-  if (!dirtyMessage) {
+  if (dirtyChanges.length === 0) {
     showToast('Nothing to back up', '')
     return
   }
-  const message = dirtyMessage
+  const changes = dirtyChanges
+  const message = commitMessage(changes)
   showToast('Checking backup…', '')
   chrome.runtime.sendMessage({ type: 'backupCheck', since: syncedHead }, (res) => {
     if (res?.noHost) {
@@ -573,7 +595,7 @@ function backupProjects(): void {
     askChoice(`Backup in git has changes from another machine (${plural(countDiffering(remote), 'project')} differ)`, [
       { key: 'm', label: 'merge — import them, then backup', run: async () => {
         await mutate((list) => mergeNewer(list, remote))
-        sendBackup(`merge: ${message}`)
+        sendBackup(commitMessage(['merge: changes from another machine', ...changes]))
       } },
       { key: 'o', label: 'overwrite — keep only this machine', run: () => sendBackup(message) },
       { key: 'n', label: 'cancel', run: () => {} },
@@ -747,7 +769,7 @@ function restoreProjects(): void {
       }))
       await setSynced(res.head)
       if (!localAhead) await clearDirty()
-      else if (!dirtyMessage) await markDirty(`merge: ${plural(taken, 'project')} from backup`)
+      else if (dirtyChanges.length === 0) await markDirty(`merge: ${plural(taken, 'project')} from backup`)
       showToast(`${plural(taken, 'project')} from backup`, 'Imported ')
       render()
     })
@@ -867,7 +889,7 @@ function onKeydown(e: KeyboardEvent): void {
 // Keeps an open panel in sync with changes made from another tab or the popup.
 function onStorageChanged(changes: Record<string, chrome.storage.StorageChange>, area: string): void {
   if (area !== 'local' || !backdrop) return
-  if (changes[DIRTY_KEY]) dirtyMessage = (changes[DIRTY_KEY].newValue as string | undefined) ?? null
+  if (changes[DIRTY_KEY]) dirtyChanges = readDirty(changes[DIRTY_KEY].newValue)
   if (changes[SYNCED_KEY]) syncedHead = (changes[SYNCED_KEY].newValue as string | undefined) ?? null
   const next = changes[STORAGE_KEY]?.newValue
   if (!Array.isArray(next) || JSON.stringify(next) === JSON.stringify(projects)) return
@@ -881,7 +903,7 @@ export async function showProjects(startNaming = false, onHideCb: (() => void) |
   onHide = onHideCb
   projects = await loadProjects()
   const stored = await chrome.storage.local.get([DIRTY_KEY, SYNCED_KEY])
-  dirtyMessage = (stored[DIRTY_KEY] as string | undefined) ?? null
+  dirtyChanges = readDirty(stored[DIRTY_KEY])
   syncedHead = (stored[SYNCED_KEY] as string | undefined) ?? null
   mode = startNaming ? { kind: 'name', query: '' } : { kind: 'search' }
   selectedIndex = 0
