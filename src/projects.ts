@@ -69,6 +69,11 @@ let projects: Project[] = []
 let dirtyChanges: string[] = []
 let syncedHead: string | null = null
 let rows: Row[] = []
+// Only the first rows get DOM nodes; more are appended on scroll or when the selection
+// moves past them (renderUpTo). Keeps typing in the search cheap with hundreds of projects.
+const ROWS_PAGE = 20
+let renderedCount = 0
+let renderFrame: number | null = null
 let selectedIndex = 0
 let expanded = new Set<number>()
 let mode: Mode = { kind: 'search' }
@@ -226,6 +231,7 @@ function favicon(url: string): HTMLElement {
   img.className = 'bs-pj-favicon'
   img.src = faviconUrl(url)
   img.alt = ''
+  img.loading = 'lazy'
   // Some pages' CSP blocks extension images — fall back to the host's first letter.
   img.addEventListener('error', () => {
     const letter = document.createElement('span')
@@ -369,21 +375,43 @@ function render(): void {
   counter.textContent = `${shown}/${projects.length}`
 
   list.innerHTML = ''
+  renderedCount = 0
   if (projects.length === 0 && rows.length === 0) {
     const empty = el('div', 'bs-pj-empty')
     empty.appendChild(el('div', 'bs-pj-empty-title', 'No projects yet'))
     empty.appendChild(el('div', 'bs-pj-empty-text', 'Type a name and press Enter (or Ctrl+S) to save the tabs of this window. Ctrl+O imports a Quick Tabs JSON export.'))
     list.appendChild(empty)
   } else {
-    rows.forEach((row, i) => list!.appendChild(renderRow(row, i)))
+    renderUpTo(Math.max(ROWS_PAGE, selectedIndex + 1))
   }
   list.querySelector('.bs-pj-selected')?.scrollIntoView({ block: 'nearest' })
   renderFooter()
 }
 
+// Appends row nodes until `count` rows exist (rounded up to whole pages).
+function renderUpTo(count: number): void {
+  if (!list) return
+  const target = Math.min(rows.length, Math.ceil(count / ROWS_PAGE) * ROWS_PAGE)
+  for (; renderedCount < target; renderedCount++) list.appendChild(renderRow(rows[renderedCount], renderedCount))
+}
+
+// Typing re-renders at most once per frame. Keys flush it first, so Enter right after
+// typing acts on the up-to-date rows.
+function scheduleRender(): void {
+  if (renderFrame === null) renderFrame = requestAnimationFrame(flushRender)
+}
+
+function flushRender(): void {
+  if (renderFrame === null) return
+  cancelAnimationFrame(renderFrame)
+  renderFrame = null
+  render()
+}
+
 function setSelected(index: number, scroll = true): void {
   if (rows.length === 0) return
   selectedIndex = Math.max(0, Math.min(rows.length - 1, index))
+  renderUpTo(selectedIndex + 1)
   const nodes = list?.querySelectorAll<HTMLElement>('.bs-pj-row')
   nodes?.forEach((n, i) => n.classList.toggle('bs-pj-selected', i === selectedIndex))
   if (scroll) nodes?.[selectedIndex]?.scrollIntoView({ block: 'nearest' })
@@ -780,6 +808,7 @@ function restoreProjects(): void {
 
 function onKeydown(e: KeyboardEvent): void {
   e.stopPropagation()
+  flushRender()
   const ctrl = e.ctrlKey || e.metaKey
   const isEscape = e.key === 'Escape' || (e.ctrlKey && e.code === 'BracketLeft')
 
@@ -924,7 +953,7 @@ export async function showProjects(startNaming = false, onHideCb: (() => void) |
   input.addEventListener('input', () => {
     if (mode.kind !== 'search') return
     selectedIndex = 0
-    render()
+    scheduleRender()
   })
   input.addEventListener('keydown', onKeydown)
   counter = el('span', 'bs-pj-counter')
@@ -933,6 +962,9 @@ export async function showProjects(startNaming = false, onHideCb: (() => void) |
   header.appendChild(counter)
 
   list = el('div', 'bs-pj-list')
+  list.addEventListener('scroll', () => {
+    if (list && list.scrollTop + list.clientHeight >= list.scrollHeight - 200) renderUpTo(renderedCount + ROWS_PAGE)
+  })
   footer = el('div', 'bs-pj-footer')
 
   panel.appendChild(header)
@@ -953,6 +985,8 @@ export async function showProjects(startNaming = false, onHideCb: (() => void) |
 
 export function hideProjects(): void {
   chrome.storage.onChanged.removeListener(onStorageChanged)
+  if (renderFrame !== null) cancelAnimationFrame(renderFrame)
+  renderFrame = null
   backdrop?.remove()
   backdrop = null
   input = null
