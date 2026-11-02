@@ -83,6 +83,21 @@ async function saveProjects(): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_KEY]: projects })
 }
 
+// Every change goes through here: re-read storage, apply, save. The panel may also be
+// open in another tab or the popup — saving this panel's copy as-is would undo what
+// was done there. Rows hold stale objects, so `fn` must find projects by id.
+async function mutate<T>(fn: (list: Project[]) => T): Promise<T> {
+  const fresh = await loadProjects()
+  const result = fn(fresh)
+  projects = fresh
+  await saveProjects()
+  return result
+}
+
+function byId(list: Project[], id: number): Project | undefined {
+  return list.find((p) => p.id === id)
+}
+
 async function markDirty(message: string): Promise<void> {
   dirtyMessage = message
   await chrome.storage.local.set({ [DIRTY_KEY]: message })
@@ -397,9 +412,11 @@ async function openProject(project: Project, openMode: OpenMode): Promise<void> 
     showToast(`“${project.title}” is empty`, '')
     return
   }
-  project.updated_at = Date.now()
   // Saved before messaging: in replace mode this very tab may be closed.
-  await saveProjects()
+  await mutate((list) => {
+    const p = byId(list, project.id)
+    if (p) p.updated_at = Date.now()
+  })
   // Message first: in the popup, hiding closes the window.
   // No saved focus (e.g. Quick Tabs imports): last tab, which is where Quick Tabs ended up too.
   const marked = project.items.findIndex((t) => t.active)
@@ -415,8 +432,7 @@ async function createProject(title: string): Promise<void> {
     return
   }
   const project: Project = { id: Date.now(), title, items, updated_at: Date.now() }
-  projects.push(project)
-  await saveProjects()
+  await mutate((list) => list.push(project))
   await markDirty(`save: ${title}`)
   showToast(`${plural(items.length, 'tab')} → “${title}”`, 'Saved ')
   backToSearch('')
@@ -430,9 +446,12 @@ async function updateProject(project: Project): Promise<void> {
     return
   }
   askConfirm(`Replace ${plural(project.items.length, 'tab')} of “${project.title}” with ${plural(items.length, 'current tab')}?`, async () => {
-    project.items = keepIds(project.items, items)
-    project.updated_at = Date.now()
-    await saveProjects()
+    await mutate((list) => {
+      const p = byId(list, project.id)
+      if (!p) return
+      p.items = keepIds(p.items, items)
+      p.updated_at = Date.now()
+    })
     await markDirty(`update: ${project.title}`)
     showToast(`“${project.title}” updated`, '')
   })
@@ -441,13 +460,17 @@ async function updateProject(project: Project): Promise<void> {
 async function addCurrentTab(project: Project): Promise<void> {
   const active = (await getWindowTabs()).find((t) => t.active)
   if (!active?.url) return
-  if (project.items.some((t) => t.url === active.url)) {
+  const added = await mutate((list) => {
+    const p = byId(list, project.id)
+    if (!p || p.items.some((t) => t.url === active.url)) return false
+    p.items.push({ id: Date.now(), title: active.title || active.url, url: active.url })
+    p.updated_at = Date.now()
+    return true
+  })
+  if (!added) {
     showToast(`Already in “${project.title}”`, '')
     return
   }
-  project.items.push({ id: Date.now(), title: active.title || active.url, url: active.url })
-  project.updated_at = Date.now()
-  await saveProjects()
   await markDirty(`update: ${project.title}`)
   showToast(`${active.title} → “${project.title}”`, 'Added ')
   render()
@@ -460,15 +483,20 @@ function deleteSelected(): void {
   const { project } = row
   if (row.kind === 'tab') {
     askConfirm(`Remove “${row.tab.title}” from “${project.title}”?`, async () => {
-      project.items = project.items.filter((t) => t !== row.tab)
-      await saveProjects()
+      const { tab } = row
+      await mutate((list) => {
+        const p = byId(list, project.id)
+        if (p) p.items = p.items.filter((t) => t.id !== tab.id || t.url !== tab.url)
+      })
       await markDirty(`update: ${project.title}`)
     })
     return
   }
   askConfirm(`Delete project “${project.title}” (${plural(project.items.length, 'tab')})?`, async () => {
-    projects = projects.filter((p) => p !== project)
-    await saveProjects()
+    await mutate((list) => {
+      const i = list.findIndex((p) => p.id === project.id)
+      if (i !== -1) list.splice(i, 1)
+    })
     await markDirty(`delete: ${project.title}`)
     showToast(`“${project.title}” deleted`, '')
   })
@@ -483,12 +511,12 @@ async function commitName(): Promise<void> {
     return
   }
   const { projectId, query } = mode
-  const project = projects.find((p) => p.id === projectId)
-  if (project) {
-    project.title = title
-    await saveProjects()
-    await markDirty(`rename: ${title}`)
-  }
+  const renamed = await mutate((list) => {
+    const p = byId(list, projectId)
+    if (p) p.title = title
+    return !!p
+  })
+  if (renamed) await markDirty(`rename: ${title}`)
   backToSearch(query)
   selectProject(projectId)
 }
@@ -544,7 +572,7 @@ function backupProjects(): void {
     }
     askChoice(`Backup in git has changes from another machine (${plural(countDiffering(remote), 'project')} differ)`, [
       { key: 'm', label: 'merge — import them, then backup', run: async () => {
-        await mergeNewer(remote)
+        await mutate((list) => mergeNewer(list, remote))
         sendBackup(`merge: ${message}`)
       } },
       { key: 'o', label: 'overwrite — keep only this machine', run: () => sendBackup(message) },
@@ -577,19 +605,16 @@ function countDiffering(remote: Project[]): number {
 
 // Merge for Ctrl+E `m` and Ctrl+I: projects only in git are added; for a project on both
 // sides the newer updated_at wins. A project deleted here but still in git comes back.
-// Returns how many projects were taken from git.
-async function mergeNewer(remote: Project[]): Promise<number> {
-  const byId = new Map(projects.map((p) => [p.id, p]))
+// Changes `list` in place (call it inside mutate); returns how many were taken from git.
+function mergeNewer(list: Project[], remote: Project[]): number {
   let taken = 0
   for (const p of remote) {
-    const mine = byId.get(p.id)
-    if (!mine || p.updated_at > mine.updated_at) {
-      byId.set(p.id, p)
-      taken++
-    }
+    const i = list.findIndex((mine) => mine.id === p.id)
+    if (i === -1) list.push(p)
+    else if (p.updated_at > list[i].updated_at) list[i] = p
+    else continue
+    taken++
   }
-  projects = [...byId.values()]
-  await saveProjects()
   return taken
 }
 
@@ -671,10 +696,13 @@ function importProjects(): void {
 }
 
 async function mergeProjects(incoming: Project[]): Promise<void> {
-  const byId = new Map(projects.map((p) => [p.id, p]))
-  incoming.forEach((p) => byId.set(p.id, p))
-  projects = [...byId.values()]
-  await saveProjects()
+  await mutate((list) => {
+    for (const p of incoming) {
+      const i = list.findIndex((mine) => mine.id === p.id)
+      if (i === -1) list.push(p)
+      else list[i] = p
+    }
+  })
   await markDirty(`import: ${plural(incoming.length, 'project')}`)
   showToast(`${plural(incoming.length, 'project')} imported`, '')
   render()
@@ -709,12 +737,14 @@ function restoreProjects(): void {
     const pullNote = res.pullError ? ` (pull failed: ${res.pullError}, using local copy)` : ''
     askConfirm(`Import from backup${pullNote}: ${plural(countDiffering(incoming), 'project')} differ, the newer version of each wins. Continue?`, async () => {
       const remoteById = new Map(incoming.map((p) => [p.id, p]))
-      // Something here that git doesn't have yet → the next Ctrl+E has work to do.
-      const localAhead = projects.some((p) => {
-        const r = remoteById.get(p.id)
-        return !r || p.updated_at > r.updated_at
-      })
-      const taken = await mergeNewer(incoming)
+      const { taken, localAhead } = await mutate((list) => ({
+        // Something here that git doesn't have yet → the next Ctrl+E has work to do.
+        localAhead: list.some((p) => {
+          const r = remoteById.get(p.id)
+          return !r || p.updated_at > r.updated_at
+        }),
+        taken: mergeNewer(list, incoming),
+      }))
       await setSynced(res.head)
       if (!localAhead) await clearDirty()
       else if (!dirtyMessage) await markDirty(`merge: ${plural(taken, 'project')} from backup`)
@@ -834,6 +864,17 @@ function onKeydown(e: KeyboardEvent): void {
 
 // --- lifecycle ---
 
+// Keeps an open panel in sync with changes made from another tab or the popup.
+function onStorageChanged(changes: Record<string, chrome.storage.StorageChange>, area: string): void {
+  if (area !== 'local' || !backdrop) return
+  if (changes[DIRTY_KEY]) dirtyMessage = (changes[DIRTY_KEY].newValue as string | undefined) ?? null
+  if (changes[SYNCED_KEY]) syncedHead = (changes[SYNCED_KEY].newValue as string | undefined) ?? null
+  const next = changes[STORAGE_KEY]?.newValue
+  if (!Array.isArray(next) || JSON.stringify(next) === JSON.stringify(projects)) return
+  projects = next as Project[]
+  render()
+}
+
 // onHideCb: the popup passes window.close, so closing the panel closes the popup.
 export async function showProjects(startNaming = false, onHideCb: (() => void) | null = null): Promise<void> {
   if (backdrop) return
@@ -845,6 +886,7 @@ export async function showProjects(startNaming = false, onHideCb: (() => void) |
   mode = startNaming ? { kind: 'name', query: '' } : { kind: 'search' }
   selectedIndex = 0
   expanded = new Set()
+  chrome.storage.onChanged.addListener(onStorageChanged)
 
   backdrop = el('div', '')
   backdrop.id = 'bs-pj-backdrop'
@@ -888,6 +930,7 @@ export async function showProjects(startNaming = false, onHideCb: (() => void) |
 }
 
 export function hideProjects(): void {
+  chrome.storage.onChanged.removeListener(onStorageChanged)
   backdrop?.remove()
   backdrop = null
   input = null
