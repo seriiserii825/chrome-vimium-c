@@ -35,7 +35,7 @@ import { uploadWpPlugin, resumeWpNewPlugin } from "./wpnewplugin";
 import { makeWpBackup, resumeWpBackup } from "./wpbackup";
 import { findInAccess, resumeAccessSearch } from "./accesssearch";
 import { writeText, readText } from "./clipboard";
-import { startScroll, stopScroll, scrollToTop, scrollToBottom, saveScrollPos, goScrollPos } from "./scroll";
+import { startScroll, stopScroll, scrollToTop, scrollToBottom, saveScrollPos, goScrollPos, clearScrollTarget } from "./scroll";
 import mappings from "../maps.csv";
 import projectsMappings from "../projects-map.csv";
 
@@ -110,6 +110,7 @@ type Action =
   | "downloadImage"
   | "copyImage"
   | "copySvg"
+  | "scrollBlock"
   | "openImage"
   | "openIncognito"
   | "moveTabToWindow"
@@ -323,6 +324,7 @@ const actions: Record<Action, () => void> = {
   downloadImage: () => { session = beginHints("di"); },
   copyImage:     () => { session = beginHints("ci"); },
   copySvg:       () => { session = beginHints("cs"); },
+  scrollBlock:   () => { session = beginHints("sb"); if (!session) showToast("No scrollable blocks", ""); },
   openImage:     () => { session = beginHints("oI"); },
   openIncognito: () => { chrome.runtime.sendMessage({ type: "openIncognito" }) },
   editUrlCurrentTab: () => {
@@ -727,6 +729,7 @@ document.addEventListener(
       if (isFindVisible()) { hideFind(); e.preventDefault(); return; }
       if (isPromptVisible()) { hidePrompt(); return; }
       if (isHelpVisible()) { hideHelp(); return; }
+      if (clearScrollTarget()) { e.preventDefault(); return; }
       (document.activeElement as HTMLElement)?.blur();
       if (window.frameElement) {
         (window.frameElement as HTMLElement).blur();

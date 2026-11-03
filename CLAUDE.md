@@ -64,6 +64,8 @@ Hint modes (hotkeys are from `maps.csv` — check there for the authoritative li
 2. JS events: dispatches `mouseenter` (non-bubbling) on each ancestor from root to target, then `mouseover` + `mousemove` on target. Handles JS event listener-based hover effects (e.g. Vue `@mouseenter`).
 Escape calls `unhoverLast()` which reverses both.
 
+**Scroll block** (`Sb`) — hint mode `sb` labels every visible element with vertical overflow (`overflow-y: auto|scroll|overlay` and `scrollHeight > clientHeight`, excluding `html`/`body`). Picking one calls `setScrollTarget` in `scroll.ts`: j/k/J/K/gg/G then scroll that element instead of the window (the element is not focused, so editors like CodeMirror don't capture the keys). Escape (`clearScrollTarget`) switches back to page scrolling; a removed element resets it automatically.
+
 **Help popup** (`help.ts` / `help.css`) — `?` opens a centered modal listing all hotkeys from `maps.csv` in a 2-column grid. Escape / click backdrop / `×` closes it.
 
 **Prompt** (`prompt.ts` / `prompt.css`) — reusable inline input popup. `showPrompt(label, initialValue, onConfirm)`. Used by `ue` (edit URL → current tab) and `uE` (edit URL → new tab). Enter confirms, Escape cancels.

@@ -5,6 +5,7 @@ J,slowScrollDown,Scroll down slowly,scroll
 K,slowScrollUp,Scroll up slowly,scroll
 gg,scrollToTop,Scroll to top of page,scroll
 G,scrollToBottom,Scroll to bottom of page,scroll
+Sb,scrollBlock,Scroll a block (hint; then j/k/gg/G scroll it; Esc resets),scroll
 ms,saveScrollPos,Save scroll position (shared across URLs of this site),scroll
 mg,goScrollPos,Go to saved scroll position,scroll
 H,historyBack,Go back in history,history

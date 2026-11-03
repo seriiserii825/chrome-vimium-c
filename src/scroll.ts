@@ -9,6 +9,41 @@ let active = false; // is scroll key currently held
 let lastTime = 0;
 let rafId: number | null = null;
 
+// Scrollable block picked via Sb; j/k/gg/G scroll it instead of the window until Escape
+let target: HTMLElement | null = null;
+
+function scroller(): HTMLElement | null {
+  if (target && !target.isConnected) target = null;
+  return target;
+}
+
+export function setScrollTarget(el: HTMLElement): void {
+  target = el;
+  const prevOutline = el.style.outline;
+  const prevOffset = el.style.outlineOffset;
+  el.style.outline = "3px solid #f9e2af";
+  el.style.outlineOffset = "-3px";
+  setTimeout(() => { el.style.outline = prevOutline; el.style.outlineOffset = prevOffset; }, 600);
+  showToast("Scrolling block (j/k, gg/G) — Esc to reset", "");
+}
+
+/** Returns true if a block was selected (so Escape was consumed) */
+export function clearScrollTarget(): boolean {
+  if (!target) return false;
+  target = null;
+  showToast("Scrolling page", "");
+  return true;
+}
+
+export function getScrollableBlocks(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>("*")).filter(el => {
+    if (el === document.documentElement || el === document.body) return false;
+    if (el.scrollHeight <= el.clientHeight + 1) return false;
+    const oy = getComputedStyle(el).overflowY;
+    return oy === "auto" || oy === "scroll" || oy === "overlay";
+  });
+}
+
 export function startScroll(direction: 1 | -1, slow = false): void {
   vel = direction * (slow ? SLOW_VELOCITY : VELOCITY);
   active = true;
@@ -25,14 +60,15 @@ export function scrollToTop(): void {
   vel = 0;
   active = false;
   if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
-  window.scrollTo({ top: 0, behavior: "instant" });
+  (scroller() ?? window).scrollTo({ top: 0, behavior: "instant" });
 }
 
 export function scrollToBottom(): void {
   vel = 0;
   active = false;
   if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
-  window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+  const el = scroller();
+  (el ?? window).scrollTo({ top: (el ?? document.documentElement).scrollHeight, behavior: "instant" });
 }
 
 // Not keyed by URL: one slot per origin (localStorage is per-origin)
@@ -124,6 +160,6 @@ function tick(now: number): void {
     }
   }
 
-  window.scrollBy(0, vel * dt);
+  (scroller() ?? window).scrollBy(0, vel * dt);
   rafId = requestAnimationFrame(tick);
 }
