@@ -80,7 +80,7 @@ Escape calls `unhoverLast()` which reverses both.
 
 **Timecode** (`timecode.ts`) — YouTube-specific. `vc` opens a prompt to seek to a `HH:MM:SS` timestamp. `vs` saves the current position with a name prompt. `ve`/`vi` export/import timecodes as JSON. Entries are stored in `localStorage` under `bs-timecodes`, keyed by YouTube video ID, max 30 per video. `startTimecodeWatcher()` runs a 500ms interval: when `video.currentTime` naturally reaches a saved timecode, the video pauses and a popup appears asking to Continue or Stay. Seeking to a timecode manually (via the list) pre-marks it in `firedSeconds` so the watcher doesn't fire. Seeking backwards more than 3 seconds re-arms timecodes that are now in the future. Timecode entries are deleted with `Delete` key only (not Backspace).
 
-**SEO tools** — `sh` (`seoinfo.ts`) shows a panel with meta title, description, og/twitter tags, and canonical URL. `st` (`seoheadings.ts`) shows the heading structure (h1–h3) as an outline panel. Both panels close on Escape or a second keypress.
+**SEO tools** — `sh` (`seoinfo.ts`) shows a panel with meta title, description, og/twitter tags, and canonical URL. `st` (`seoheadings.ts`) shows the heading structure (h1–h3) as an outline panel. `Srl` (`seorel.ts`) lists every `a[rel]` / `area[rel]` with its rel value, text and href, plus rel badges on the page; clicking a row scrolls to the link and flashes an outline (hidden links are dimmed). `Stl` is the same panel for `target="_blank"` links (badge `_blank · <rel>`, to spot missing `noopener`). All panels close on Escape or `q`.
 
 **Cookie confirm** (`cookieconfirm.ts`) — `dc` shows a confirmation dialog before deleting all cookies for the current domain and reloading. Prevents accidental logouts.
 
@@ -112,6 +112,7 @@ Escape calls `unhoverLast()` which reverses both.
 | `videoquality.ts` | Video quality picker + fullscreen + speed |
 | `seoinfo.ts` | SEO meta info panel |
 | `seoheadings.ts` | Heading structure panel |
+| `seorel.ts` | Links-with-rel / target=_blank panels (`Srl`, `Stl`) |
 | `imageinfo.ts` | Image info popup (dimensions, size, type) |
 | `cookieconfirm.ts` | Delete-cookies confirmation dialog |
 | `help.ts` | Keyboard shortcuts popup |

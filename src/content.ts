@@ -6,6 +6,7 @@ import "./cookieconfirm.css";
 import "./imageinfo.css";
 import "./seoinfo.css";
 import "./seoheadings.css";
+import "./seorel.css";
 import "./tabswitcher.css";
 import "./timecode.css";
 import "./historysearch.css";
@@ -20,6 +21,7 @@ import { showCookieConfirm, hideCookieConfirm, isCookieConfirmVisible } from "./
 import { hideImageInfo, isImageInfoVisible } from "./imageinfo";
 import { showSeoInfo, hideSeoInfo, isSeoInfoVisible } from "./seoinfo";
 import { showSeoHeadings, hideSeoHeadings, isSeoHeadingsVisible } from "./seoheadings";
+import { showSeoRelLinks, showSeoBlankLinks, hideSeoRelLinks, isSeoRelLinksVisible } from "./seorel";
 import { showTimecode, hideTimecode, isTimecodeVisible, saveCurrentTimecode, goToTime, exportTimecodes, importTimecodes, startTimecodeWatcher } from "./timecode";
 import { showHistorySearch, hideHistorySearch, isHistorySearchVisible, HistoryEntry } from "./historysearch";
 import { showFind, hideFind, isFindVisible } from "./findinpage";
@@ -121,6 +123,8 @@ type Action =
   | "pasteTableColumn"
   | "showSeoInfo"
   | "showSeoHeadings"
+  | "showSeoRelLinks"
+  | "showSeoBlankLinks"
   | "inputEdit"
   | "inputClearEdit"
   | "inputEditStart"
@@ -459,6 +463,8 @@ const actions: Record<Action, () => void> = {
   makeWpBackup: () => { makeWpBackup(); },
   findInAccess: () => { findInAccess(); },
   showSeoHeadings: () => { showSeoHeadings(); },
+  showSeoRelLinks: () => { showSeoRelLinks(); },
+  showSeoBlankLinks: () => { showSeoBlankLinks(); },
   inputEdit: () => { session = beginHints("ie"); },
   inputEditStart: () => { session = beginHints("is"); },
   inputClearEdit: () => { session = beginHints("ic"); },
@@ -562,7 +568,7 @@ function clearCount(): void {
 // Hints, scrolling, find etc. stay in the frame they were pressed in.
 const topFrameActions = new Set<Action>([
   "showProjects", "saveProject", "showHelp", "showHistory", "goToTab",
-  "showSeoInfo", "showSeoHeadings", "editUrlCurrentTab", "editUrlNewTab",
+  "showSeoInfo", "showSeoHeadings", "showSeoRelLinks", "showSeoBlankLinks", "editUrlCurrentTab", "editUrlNewTab",
 ]);
 
 function dispatchAction(action: Action): void {
@@ -716,6 +722,7 @@ document.addEventListener(
       if (isImageInfoVisible()) { hideImageInfo(); e.preventDefault(); return; }
       if (isSeoInfoVisible()) { hideSeoInfo(); e.preventDefault(); return; }
       if (isSeoHeadingsVisible()) { hideSeoHeadings(); e.preventDefault(); return; }
+      if (isSeoRelLinksVisible()) { hideSeoRelLinks(); e.preventDefault(); return; }
       if (isHistorySearchVisible()) { hideHistorySearch(); e.preventDefault(); return; }
       if (isFindVisible()) { hideFind(); e.preventDefault(); return; }
       if (isPromptVisible()) { hidePrompt(); return; }
@@ -734,6 +741,7 @@ document.addEventListener(
     if (isImageInfoVisible() && key === "q") { hideImageInfo(); e.preventDefault(); return; }
     if (isSeoInfoVisible() && key === "q") { hideSeoInfo(); e.preventDefault(); return; }
     if (isSeoHeadingsVisible() && key === "q") { hideSeoHeadings(); e.preventDefault(); return; }
+    if (isSeoRelLinksVisible() && key === "q") { hideSeoRelLinks(); e.preventDefault(); return; }
     if (isHelpVisible() && key === "q") { hideHelp(); e.preventDefault(); return; }
 
     if (isHelpVisible()) return;
