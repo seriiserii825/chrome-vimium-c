@@ -22,6 +22,7 @@ interface LinkPanelConfig {
   title: string
   empty: string
   badge: (el: HTMLElement) => string
+  showTitle?: boolean
 }
 
 export function showSeoRelLinks(): void {
@@ -42,6 +43,7 @@ export function showSeoBlankLinks(): void {
       const rel = el.getAttribute('rel')
       return rel ? `_blank · ${rel}` : '_blank'
     },
+    showTitle: true,
   })
 }
 
@@ -120,6 +122,13 @@ function showLinkPanel(cfg: LinkPanelConfig): void {
       href.textContent = el.getAttribute('href') ?? ''
 
       info.appendChild(text)
+      const titleAttr = cfg.showTitle ? el.getAttribute('title')?.trim() : ''
+      if (titleAttr) {
+        const titleEl = document.createElement('span')
+        titleEl.className = 'bs-seor-title'
+        titleEl.textContent = `title: ${titleAttr}`
+        info.appendChild(titleEl)
+      }
       info.appendChild(href)
       row.appendChild(badge)
       row.appendChild(info)
