@@ -56,6 +56,7 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: 
   // tabs already open with a project URL are reused instead of reloaded),
   // "keep" adds the missing ones, "window" opens the project in a new window.
   if (type === "openProject" && msg.urls?.length) {
+    sendResponse({ ok: true }); // the popup closes on this, the work below goes on without it
     (async () => {
       const urls = msg.urls!;
       const activeIndex = msg.activeIndex ?? urls.length - 1;
@@ -290,6 +291,7 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: 
     // left: right next to the sender's tab, on its left (takes its index, pushing it right).
     const index = msg.left ? _sender.tab?.index : undefined;
     chrome.tabs.create({ url: msg.url, active: true, index });
+    sendResponse({ ok: true });
     return;
   }
 

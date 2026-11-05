@@ -470,6 +470,19 @@ function toggleExpand(force?: boolean): void {
   selectProject(id)
 }
 
+// Hides the panel, but runs onHide (popup: window.close) only once the background has
+// answered. A sleeping service worker takes a moment to start, and closing the popup
+// before that drops the message: the first click closed the popup and opened nothing.
+function sendAndHide(message: object): void {
+  const cb = onHide
+  onHide = null
+  hideProjects()
+  chrome.runtime.sendMessage(message, () => {
+    void chrome.runtime.lastError
+    cb?.()
+  })
+}
+
 async function openProject(project: Project, openMode: OpenMode): Promise<void> {
   if (project.items.length === 0) {
     showToast(`“${project.title}” is empty`, '')
@@ -480,12 +493,10 @@ async function openProject(project: Project, openMode: OpenMode): Promise<void> 
     const p = byId(list, project.id)
     if (p) p.updated_at = Date.now()
   })
-  // Message first: in the popup, hiding closes the window.
   // No saved focus (e.g. Quick Tabs imports): last tab, which is where Quick Tabs ended up too.
   const marked = project.items.findIndex((t) => t.active)
   const activeIndex = marked !== -1 ? marked : project.items.length - 1
-  chrome.runtime.sendMessage({ type: 'openProject', urls: project.items.map((t) => t.url), activeIndex, mode: openMode })
-  hideProjects()
+  sendAndHide({ type: 'openProject', urls: project.items.map((t) => t.url), activeIndex, mode: openMode })
 }
 
 async function createProject(title: string): Promise<void> {
@@ -643,8 +654,7 @@ function activate(openMode: OpenMode): void {
   } else if (row.kind === 'project') {
     void openProject(row.project, openMode)
   } else {
-    chrome.runtime.sendMessage({ type: 'navigateTo', url: row.tab.url })
-    hideProjects()
+    sendAndHide({ type: 'navigateTo', url: row.tab.url })
   }
 }
 
