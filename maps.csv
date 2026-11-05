@@ -53,7 +53,7 @@ ge,goExtensions,Go to chrome://extensions,url
 gk,goExtensionShortcuts,Go to extension shortcuts,url
 gd,goDownloads,Go to downloads,url
 wa,goWpAdmin,Open WP admin edit page in new tab (left of current),url
-wl,goAdminLogin,Go to admin login (/gestione → /login → /wp-admin),url
+wl,goAdminLogin,Open admin login in new tab (left of current) (/gestione → /login → /wp-admin),url
 wp,showWpPhp,Show WordPress and PHP versions,url
 wtm,toggleWpMigration,Toggle All-in-One WP Migration plugin,url
 wtc,copyWpThemeName,Copy WordPress theme folder name,url

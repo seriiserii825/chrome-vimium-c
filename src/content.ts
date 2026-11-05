@@ -249,18 +249,22 @@ async function openClipboardUrl(): Promise<void> {
 
 async function goAdminLogin(): Promise<void> {
   const { origin } = window.location;
+  // Open in a new tab to the left of the current one
+  const go = (url: string): void => {
+    chrome.runtime.sendMessage({ type: "navigateTo", url, left: true });
+  };
   showToast("Looking for admin…", "");
   // Probe all paths in parallel, but respect priority order: go as soon as the
   // highest-priority path is known to exist and all higher ones are known not to
   const checks = ADMIN_PATHS.map((path) => adminPathExists(origin + path));
   for (let i = 0; i < ADMIN_PATHS.length; i++) {
     if (await checks[i]) {
-      window.location.href = origin + ADMIN_PATHS[i];
+      go(origin + ADMIN_PATHS[i]);
       return;
     }
   }
   // Nothing responded — fall back to the last path anyway
-  window.location.href = origin + ADMIN_PATHS[ADMIN_PATHS.length - 1];
+  go(origin + ADMIN_PATHS[ADMIN_PATHS.length - 1]);
 }
 
 const actions: Record<Action, () => void> = {
