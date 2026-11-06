@@ -29,7 +29,7 @@ import { showProjects, isProjectsVisible } from "./projects";
 import { applyBestQuality } from "./videoquality";
 import { physicalKey } from "./keycode";
 import { showToast } from "./toast";
-import { showWpPhp, hideWpPhp, isWpPhpVisible } from "./wpphp";
+import { showWpPhp, hideWpPhp, isWpPhpVisible, wpAdminUrl } from "./wpphp";
 import { toggleWpMigration, resumeWpMigration } from "./wpmigration";
 import { uploadWpPlugin, resumeWpNewPlugin } from "./wpnewplugin";
 import { makeWpBackup, resumeWpBackup } from "./wpbackup";
@@ -247,24 +247,49 @@ async function openClipboardUrl(): Promise<void> {
   chrome.runtime.sendMessage({ type: "navigateTo", url });
 }
 
-async function goAdminLogin(): Promise<void> {
+// First admin login path (from ADMIN_PATHS) that responds; falls back to the last one.
+async function findAdminLoginUrl(): Promise<string> {
   const { origin } = window.location;
-  // Open in a new tab to the left of the current one
-  const go = (url: string): void => {
-    chrome.runtime.sendMessage({ type: "navigateTo", url, left: true });
-  };
-  showToast("Looking for admin…", "");
-  // Probe all paths in parallel, but respect priority order: go as soon as the
-  // highest-priority path is known to exist and all higher ones are known not to
+  if (!ADMIN_PATHS.length) return `${origin}/wp-login.php`;
+  // Probe all paths in parallel, but respect priority order: pick the highest-priority
+  // path that exists, once all higher ones are known not to
   const checks = ADMIN_PATHS.map((path) => adminPathExists(origin + path));
   for (let i = 0; i < ADMIN_PATHS.length; i++) {
-    if (await checks[i]) {
-      go(origin + ADMIN_PATHS[i]);
-      return;
-    }
+    if (await checks[i]) return origin + ADMIN_PATHS[i];
   }
   // Nothing responded — fall back to the last path anyway
-  go(origin + ADMIN_PATHS[ADMIN_PATHS.length - 1]);
+  return origin + ADMIN_PATHS[ADMIN_PATHS.length - 1];
+}
+
+async function goAdminLogin(): Promise<void> {
+  showToast("Looking for admin…", "");
+  const url = await findAdminLoginUrl();
+  chrome.runtime.sendMessage({ type: "navigateTo", url, left: true });
+}
+
+// Opens the post editor in a new tab on the left. When the user is not signed in,
+// the editor URL is not usable (the admin path may 404 or redirect), so the admin
+// login page is opened with redirect_to=<editor>: after sign-in WordPress lands on the editor.
+async function goWpPostEdit(): Promise<void> {
+  const postId = extractWpPostId();
+  if (!postId) { showToast("WP post id not found", ""); return; }
+  const editUrl = wpAdminUrl(document, window.location.href, `post.php?post=${postId}&action=edit`).href;
+  showToast("Checking WP login…", "");
+  let loggedIn = false;
+  try {
+    const res = await fetch(editUrl, {
+      credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(4000),
+    });
+    const doc = new DOMParser().parseFromString(await res.text(), "text/html");
+    const onLogin = new URL(res.url).pathname.endsWith("/wp-login.php") || !!doc.querySelector("#loginform");
+    loggedIn = res.ok && !onLogin;
+  } catch {
+    // Unknown (network error or timeout): the login page with redirect_to is safe either way
+  }
+  const target = loggedIn
+    ? editUrl
+    : `${await findAdminLoginUrl()}?redirect_to=${encodeURIComponent(editUrl)}`;
+  chrome.runtime.sendMessage({ type: "navigateTo", url: target, left: true });
 }
 
 const actions: Record<Action, () => void> = {
@@ -405,11 +430,7 @@ const actions: Record<Action, () => void> = {
   goExtensions:         () => { chrome.runtime.sendMessage({ type: "navigateTo", url: "chrome://extensions/" }) },
   goExtensionShortcuts: () => { chrome.runtime.sendMessage({ type: "navigateTo", url: "chrome://extensions/shortcuts" }) },
   goDownloads:          () => { chrome.runtime.sendMessage({ type: "navigateTo", url: "chrome://downloads/" }) },
-  goWpAdmin: () => {
-    const postId = extractWpPostId();
-    if (!postId) { showToast("WP post id not found", ""); return; }
-    chrome.runtime.sendMessage({ type: "navigateTo", url: `${window.location.origin}/wp-admin/post.php?post=${postId}&action=edit`, left: true });
-  },
+  goWpAdmin: () => { void goWpPostEdit(); },
   goAdminLogin: () => { void goAdminLogin(); },
   yankPageId: () => {
     const bodyId = extractPostIdFromBodyClass();
