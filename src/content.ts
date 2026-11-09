@@ -196,15 +196,20 @@ function extractWpThemeName(): string | null {
 // Injected at build time from ADMIN_PATHS in .env (see vite.config.ts)
 const ADMIN_PATHS: string[] = __ADMIN_PATHS__;
 
-async function adminPathExists(url: string): Promise<boolean> {
+// Probes an admin path; returns the URL of the WordPress login form it leads to, or null.
+// Status codes can't be trusted (themes serve soft 404 pages with 200, WordPress redirects
+// unknown paths), so the response body must contain the login form. Redirects are followed:
+// /wp-admin → wp-login.php yields the final wp-login.php URL.
+async function probeAdminLogin(url: string): Promise<string | null> {
   try {
-    // Don't follow redirects (e.g. /wp-admin → wp-login.php): a redirect already means the path exists
-    const res = await fetch(url, { method: "HEAD", redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(4000) });
-    if (res.type === "opaqueredirect") return true;
-    // 404 = not found, 5xx = server error → skip; everything else counts as "exists"
-    return res.status !== 404 && res.status < 500;
+    const res = await fetch(url, { cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(4000) });
+    if (!res.ok) return null;
+    const html = await res.text();
+    if (!/name=["']pwd["']/.test(html)) return null;
+    const final = new URL(res.url);
+    return final.origin + final.pathname;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -247,18 +252,37 @@ async function openClipboardUrl(): Promise<void> {
   chrome.runtime.sendMessage({ type: "navigateTo", url });
 }
 
-// First admin login path (from ADMIN_PATHS) that responds; falls back to the last one.
-async function findAdminLoginUrl(): Promise<string> {
+// WordPress install root URL without trailing slash. On localhost the site often lives in a
+// subdirectory (http://localhost/site), so admin paths must be appended to it, not to the origin.
+function wpBaseUrl(): string {
   const { origin } = window.location;
-  if (!ADMIN_PATHS.length) return `${origin}/wp-login.php`;
-  // Probe all paths in parallel, but respect priority order: pick the highest-priority
-  // path that exists, once all higher ones are known not to
-  const checks = ADMIN_PATHS.map((path) => adminPathExists(origin + path));
-  for (let i = 0; i < ADMIN_PATHS.length; i++) {
-    if (await checks[i]) return origin + ADMIN_PATHS[i];
+  const urls = Array.from(document.querySelectorAll<HTMLElement>(
+    "link[href*='/wp-content/'], script[src*='/wp-content/'], img[src*='/wp-content/'], " +
+    "link[href*='/wp-includes/'], script[src*='/wp-includes/'], link[href*='/wp-json'], " +
+    "#wpadminbar a[href], a[href*='/wp-admin/']",
+  ), (el) => (el as HTMLLinkElement).href || (el as HTMLScriptElement).src);
+  for (const raw of urls) {
+    try {
+      const url = new URL(raw, window.location.href);
+      if (url.origin !== origin) continue;
+      const m = url.pathname.match(/^(.*?)\/(?:wp-content|wp-includes|wp-admin|wp-json)(?:\/|$)/);
+      if (m) return origin + m[1];
+    } catch { /* ignore malformed URL */ }
   }
-  // Nothing responded — fall back to the last path anyway
-  return origin + ADMIN_PATHS[ADMIN_PATHS.length - 1];
+  return origin;
+}
+
+// First admin login path (from ADMIN_PATHS) that serves a login form; falls back to wp-login.php.
+async function findAdminLoginUrl(): Promise<string> {
+  const base = wpBaseUrl();
+  // Probe all paths in parallel, but respect priority order: pick the highest-priority
+  // path that works, once all higher ones are known not to
+  const checks = ADMIN_PATHS.map((path) => probeAdminLogin(base + path));
+  for (const check of checks) {
+    const found = await check;
+    if (found) return found;
+  }
+  return `${base}/wp-login.php`;
 }
 
 async function goAdminLogin(): Promise<void> {
