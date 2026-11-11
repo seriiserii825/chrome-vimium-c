@@ -143,6 +143,8 @@ type Action =
   | "importTimecodes"
   | "speedUp"
   | "speedDown"
+  | "seekBack"
+  | "seekForward"
   | "videoQuality"
   | "videoFullscreen"
   | "openVideoNewTab"
@@ -553,6 +555,8 @@ const actions: Record<Action, () => void> = {
     video.playbackRate = rate
     showToast(`${rate}×`, 'Speed: ')
   },
+  seekBack: () => { seekVideo(-10 * currentCount) },
+  seekForward: () => { seekVideo(10 * currentCount) },
   videoQuality: () => { void applyBestQuality() },
   reloadExtension: () => { try { chrome.runtime.sendMessage({ type: "reloadExtension" }) } catch {} },
   videoFullscreen: () => {
@@ -621,6 +625,22 @@ const topFrameActions = new Set<Action>([
   "showProjects", "saveProject", "showHelp", "showHistory", "goToTab",
   "showSeoInfo", "showSeoHeadings", "showSeoRelLinks", "showSeoBlankLinks", "editUrlCurrentTab", "editUrlNewTab",
 ]);
+
+function formatVideoTime(t: number): string {
+  const s = Math.floor(t);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = String(s % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
+}
+
+function seekVideo(delta: number): void {
+  const video = document.querySelector("video");
+  if (!video) return;
+  const max = Number.isFinite(video.duration) ? video.duration : Infinity;
+  video.currentTime = Math.min(Math.max(video.currentTime + delta, 0), max);
+  showToast(`${delta > 0 ? "+" : ""}${delta}s → ${formatVideoTime(video.currentTime)}`, "Seek: ");
+}
 
 function dispatchAction(action: Action): void {
   currentCount = countPrefix ? Math.max(1, parseInt(countPrefix, 10)) : 1;

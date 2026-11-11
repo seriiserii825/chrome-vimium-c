@@ -93,6 +93,8 @@ zi,zoomIn,Zoom in,zoom
 zo,zoomOut,Zoom out,zoom
 vu,speedUp,Speed up video (+0.25),video
 vd,speedDown,Speed down video (-0.25),video
+vh,seekBack,Seek video back 10s (count: 3vh = 30s),video
+vl,seekForward,Seek video forward 10s (count: 3vl = 30s),video
 vq,videoQuality,Set video quality,video
 vf,videoFullscreen,Toggle video fullscreen,video
 vo,openVideoNewTab,Open video in new tab,video
