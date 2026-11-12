@@ -56,5 +56,6 @@ Thumbs.db
 .env
 .env.sha256
 
-# native host wrapper with a machine-specific backup dir (native/install.sh <dir>)
+# native host wrappers with a machine-specific backup dir (native/install.sh)
 native/projects_backup.local.sh
+native/timecodes_backup.local.sh

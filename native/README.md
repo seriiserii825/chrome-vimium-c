@@ -21,7 +21,7 @@
    ```
 2. Зарегистрируй скрипт в Chrome, Chromium и Brave:
    ```bash
-   native/install.sh              # бэкап в ~/Documents/vimium-tabs
+   native/install.sh              # бэкап в ~/Documents/vimium-tabs (или оставляет уже заданную папку)
    native/install.sh ~/other/dir  # или в свою папку
    ```
 3. Загрузи `dist/` в `chrome://extensions` через «Load unpacked». ID должен быть `ecpabanjdgnmfemepdgoimbhlbdmmhnh`: он задаётся полем `key` в `manifest.json`, не меняй его.
@@ -50,7 +50,8 @@ Ctrl+E → background.ts → chrome.runtime.sendNativeMessage("com.bs.vimium_pro
 | Файл | Что это |
 |------|---------|
 | `projects_backup.py` | сам скрипт: запись, коммит, пуш |
-| `install.sh` | создаёт `com.bs.vimium_projects.json` в `~/.config/<браузер>/NativeMessagingHosts/` |
+| `timecodes_backup.py` | бэкап таймкодов YouTube (см. ниже) |
+| `install.sh` | создаёт `com.bs.vimium_projects.json` и `com.bs.vimium_timecodes.json` в `~/.config/<браузер>/NativeMessagingHosts/` |
 | `projects_backup.local.sh` | обёртка со своей папкой, создаётся через `install.sh <dir>` (в .gitignore) |
 
 Лог: `~/.cache/vimium-projects-backup.log`
@@ -59,8 +60,18 @@ Ctrl+E → background.ts → chrome.runtime.sendNativeMessage("com.bs.vimium_pro
 
 Chrome запускает скрипт со своим окружением и может не видеть ssh-agent. Если ключ под паролем, пуш упадёт; ошибка будет в тосте и в логе. Коммит при этом сохранится локально и уйдёт со следующим `Ctrl+E`.
 
+## Таймкоды YouTube
+
+`ve` на странице видео: `git pull` в `~/Documents/youtube-timecodes`, запись таймкодов этого видео в `<название-видео>.json` (кириллица → латиница по таблице `cyr-to-lat` из go-scripts, например `Мое видео` → `moe-video`), коммит только этого файла и пуш. Файл видео ищется по `videoId`, так что после переименования видео пишется в тот же файл.
+
+Если файл этого видео в git менялся с другого компьютера после последней синхронизации (`bs-timecodes-synced` в localStorage youtube.com) — выбор `m` merge / `o` overwrite / `n` отмена, как у Projects.
+
+`vi`: `git pull` и импорт таймкодов из всех `*.json` папки (включая старые экспорты-массивы). Добавляются только отсутствующие, у совпадающих остаётся локальное имя; удаления не переносятся.
+
+Папка по умолчанию `~/Documents/youtube-timecodes`, своя: `VIMIUM_TIMECODES_DIR=<dir> native/install.sh`. Лог: `~/.cache/vimium-timecodes-backup.log`.
+
 ## Удаление
 
 ```bash
-rm ~/.config/{google-chrome,chromium,BraveSoftware/Brave-Browser}/NativeMessagingHosts/com.bs.vimium_projects.json
+rm ~/.config/{google-chrome,chromium,BraveSoftware/Brave-Browser}/NativeMessagingHosts/com.bs.vimium_{projects,timecodes}.json
 ```

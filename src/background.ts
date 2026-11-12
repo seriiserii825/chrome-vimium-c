@@ -6,7 +6,7 @@
   chrome.tabs.reload(tab.id);
 })();
 
-chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: string[]; activeIndex?: number; mode?: string; currentTabId?: number; targetWindowId?: number; ratio?: number; tabId?: number; quality?: string; message?: string; since?: string; action?: string; left?: boolean }, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: string[]; activeIndex?: number; mode?: string; currentTabId?: number; targetWindowId?: number; ratio?: number; tabId?: number; quality?: string; message?: string; since?: string; action?: string; left?: boolean; payload?: Record<string, unknown> }, _sender, sendResponse) => {
   const type = msg.type;
 
   // An overlay action pressed inside an iframe: run it in the tab's top frame instead.
@@ -40,6 +40,16 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: 
         if (chrome.runtime.lastError) sendResponse({ ok: false, noHost: true, error: "backup host not installed (native/install.sh)" });
         else sendResponse(reply);
       });
+    });
+    return true;
+  }
+
+  // YouTube timecodes backup (native/timecodes_backup.py). The content script owns the
+  // data (localStorage on youtube.com) and sends the host payload as is.
+  if (type === "timecodesNative" && msg.payload) {
+    chrome.runtime.sendNativeMessage("com.bs.vimium_timecodes", msg.payload, (reply) => {
+      if (chrome.runtime.lastError) sendResponse({ ok: false, noHost: true, error: "timecodes host not installed (native/install.sh)" });
+      else sendResponse(reply);
     });
     return true;
   }

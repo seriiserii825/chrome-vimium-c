@@ -397,3 +397,54 @@
   border-color: #89b4fa;
   color: #cdd6f4;
 }
+
+/* Backup choice dialog (ve when git changed on another machine) */
+
+#bs-tc-choice {
+  position: fixed;
+  top: 18vh;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 520px;
+  background: #1e1e2e;
+  border: 1px solid #45475a;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  z-index: 2147483647;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: sans-serif;
+  font-size: 13px;
+  color: #cdd6f4;
+}
+
+#bs-tc-choice-msg {
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.bs-tc-choice-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 5px 8px;
+  text-align: left;
+  font: inherit;
+  color: #a6adc8;
+  cursor: pointer;
+}
+
+.bs-tc-choice-btn:hover {
+  border-color: #45475a;
+  color: #cdd6f4;
+}
+
+.bs-tc-choice-btn span {
+  display: inline-block;
+  min-width: 18px;
+  font-family: monospace;
+  font-weight: 700;
+  color: #89b4fa;
+}

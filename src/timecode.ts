@@ -152,10 +152,10 @@ export function showTimecode(): void {
     hint('Enter', 'seek'),
     hint('q', 'close'),
   ]) + hintsRow('global', [
-    hint('tc', 'open'),
-    hint('ts', 'save'),
-    hint('te', 'export'),
-    hint('ti', 'import'),
+    hint('vc', 'open'),
+    hint('vs', 'save'),
+    hint('ve', 'backup'),
+    hint('vi', 'import'),
     hint('vu', '+spd'),
     hint('vd', '−spd'),
     hint('vq', 'quality'),
@@ -571,24 +571,172 @@ export function isTimecodeVisible(): boolean {
   return backdrop !== null
 }
 
-export function exportTimecodes(): void {
-  const entries = loadEntries()
-  if (entries.length === 0) {
-    showToastLocal('Nothing to export', '')
-    return
+// --- Backup to git (native/timecodes_backup.py) ---
+// ve: the host pulls, checks whether this video's file changed in git since this machine
+// last synced (another machine pushed); if so: merge / overwrite / cancel. Then it writes
+// <dir>/<transliterated-title>.json, commits and pushes.
+// vi: the host pulls and returns the timecodes of every file; they are merged in (entries
+// already here keep their name, so nothing local is lost). Deletions don't propagate.
+// Without the host installed both fall back to the old download / file picker.
+
+const SYNCED_KEY = 'bs-timecodes-synced'
+
+type HostReply = {
+  ok?: boolean; noHost?: boolean; error?: string; pullError?: string; pushError?: string
+  head?: string; file?: string; changed?: boolean; pushed?: boolean; remoteChanged?: boolean
+  timecodes?: unknown
+}
+
+function native(payload: Record<string, unknown>, onReply: (res: HostReply) => void): void {
+  try {
+    chrome.runtime.sendMessage({ type: 'timecodesNative', payload }, (res: HostReply | undefined) => {
+      onReply(res ?? { ok: false, error: chrome.runtime.lastError?.message ?? 'no reply' })
+    })
+  } catch (e) {
+    // The extension was reloaded: this content script is orphaned until the page reloads.
+    onReply({ ok: false, error: e instanceof Error ? e.message : String(e) })
   }
-  const json = JSON.stringify(entries, null, 2)
-  const blob = new Blob([json], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'timecodes.json'
-  a.click()
-  URL.revokeObjectURL(url)
-  showToastLocal(`${entries.length} timecode${entries.length === 1 ? '' : 's'} exported`, '')
+}
+
+function getSynced(): string | null {
+  return localStorage.getItem(SYNCED_KEY)
+}
+
+function setSynced(head: string | undefined): void {
+  if (head) localStorage.setItem(SYNCED_KEY, head)
+}
+
+function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? '' : 's'}`
+}
+
+function pullNote(res: HostReply): string {
+  return res.pullError ? ` (pull failed: ${res.pullError})` : ''
+}
+
+function getVideoTitle(): string {
+  const h1 = document.querySelector('ytd-watch-metadata h1, h1.ytd-watch-metadata, #title h1')?.textContent?.trim()
+  if (h1) return h1
+  return document.title.replace(/^\(\d+\)\s*/, '').replace(/\s*-\s*YouTube$/, '').trim()
+}
+
+function videoTimecodes(videoId: string): { seconds: number; name: string }[] {
+  return loadEntries()
+    .filter(e => e.videoId === videoId)
+    .map(e => ({ seconds: e.seconds, name: e.name }))
+    .sort((a, b) => a.seconds - b.seconds)
+}
+
+function parseEntries(data: unknown, videoId?: string): TimecodeEntry[] {
+  if (!Array.isArray(data)) return []
+  return data
+    .filter((e): e is Record<string, unknown> => typeof e === 'object' && e !== null && typeof (e as Record<string, unknown>).seconds === 'number')
+    .map(e => ({
+      videoId: typeof e.videoId === 'string' ? e.videoId : videoId ?? '',
+      seconds: e.seconds as number,
+      name: typeof e.name === 'string' ? e.name : '',
+    }))
+    .filter(e => e.videoId !== '')
+}
+
+// Adds entries that aren't here yet; entries on both sides keep the local name.
+// Returns how many were added.
+function mergeKeepLocal(incoming: TimecodeEntry[]): number {
+  const all = loadEntries()
+  const have = new Set(all.map(e => `${e.videoId}:${e.seconds}`))
+  let added = 0
+  for (const e of incoming) {
+    const key = `${e.videoId}:${e.seconds}`
+    if (have.has(key)) continue
+    have.add(key)
+    all.push(e)
+    added++
+  }
+  if (added) localStorage.setItem(STORAGE_KEY, JSON.stringify(all))
+  return added
+}
+
+// Timecodes present on only one side, or with a different name.
+function countDiffering(local: { seconds: number; name: string }[], remote: TimecodeEntry[]): number {
+  const mine = new Map(local.map(t => [t.seconds, t.name]))
+  const theirs = new Map(remote.map(t => [t.seconds, t.name]))
+  let n = 0
+  for (const [s, name] of theirs) if (mine.get(s) !== name) n++
+  for (const s of mine.keys()) if (!theirs.has(s)) n++
+  return n
+}
+
+export function exportTimecodes(): void {
+  const videoId = getVideoId()
+  if (!videoId) { showToastLocal('Open a YouTube video to export its timecodes', ''); return }
+  const local = videoTimecodes(videoId)
+  if (local.length === 0) { showToastLocal('No timecodes for this video', ''); return }
+  const title = getVideoTitle() || videoId
+
+  showToastLocal('Checking backup…', '')
+  native({ action: 'check', videoId, timecodes: local, since: getSynced() }, (res) => {
+    if (res.noHost) { downloadTimecodes(videoId); return }
+    if (!res.ok) { showToastLocal(res.error ?? 'unknown error', 'Backup failed: '); return }
+    if (!res.remoteChanged) { sendBackup(videoId, title); return }
+    const remote = parseEntries(res.timecodes, videoId)
+    showChoice(
+      `${res.file ?? 'Backup'} changed on another machine (${plural(countDiffering(local, remote), 'timecode')} differ)${pullNote(res)}`,
+      [
+        { key: 'm', label: 'merge — add theirs, then backup', run: () => { mergeKeepLocal(remote); sendBackup(videoId, title) } },
+        { key: 'o', label: 'overwrite — keep only this machine', run: () => sendBackup(videoId, title) },
+        { key: 'n', label: 'cancel', run: () => {} },
+      ],
+    )
+  })
+}
+
+function sendBackup(videoId: string, title: string): void {
+  const timecodes = videoTimecodes(videoId)
+  showToastLocal('Saving backup…', '')
+  native({ action: 'backup', videoId, title, timecodes }, (res) => {
+    if (res.noHost) { downloadTimecodes(videoId); return }
+    if (!res.ok) { showToastLocal(res.error ?? 'unknown error', 'Backup failed: '); return }
+    setSynced(res.head)
+    if (res.pushError) { showToastLocal(`${res.pushError}${pullNote(res)}`, 'Committed, push failed: '); return }
+    showToastLocal(
+      `${plural(timecodes.length, 'timecode')} → ${res.file}${res.changed ? '' : ' (no changes)'}${res.pushed ? ' · pushed' : ''}${pullNote(res)}`,
+      'Backup: ',
+    )
+  })
 }
 
 export function importTimecodes(): void {
+  showToastLocal('Loading backup…', '')
+  native({ action: 'restore' }, (res) => {
+    if (res.noHost) { importTimecodesFile(); return }
+    if (!res.ok) { showToastLocal(res.error ?? 'unknown error', 'Import failed: '); return }
+    const incoming = parseEntries(res.timecodes)
+    setSynced(res.head)
+    if (incoming.length === 0) { showToastLocal(`No timecodes in backup${pullNote(res)}`, ''); return }
+    const added = mergeKeepLocal(incoming)
+    const videoId = getVideoId()
+    const forVideo = videoId ? videoTimecodes(videoId).length : 0
+    showToastLocal(
+      `${added ? plural(added, 'new timecode') : 'already up to date'}${videoId ? ` · ${forVideo} for this video` : ''}${pullNote(res)}`,
+      added ? 'Imported: ' : '',
+    )
+  })
+}
+
+// Fallbacks without the native host: plain download / file picker (array of entries).
+function downloadTimecodes(videoId: string): void {
+  const entries = loadEntries().filter(e => e.videoId === videoId)
+  const blob = new Blob([JSON.stringify(entries, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `timecodes-${videoId}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+  showToastLocal(`${plural(entries.length, 'timecode')} downloaded (backup host not installed)`, '')
+}
+
+function importTimecodesFile(): void {
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = '.json,application/json'
@@ -598,22 +746,10 @@ export function importTimecodes(): void {
     const reader = new FileReader()
     reader.onload = () => {
       try {
-        const data = JSON.parse(reader.result as string)
-        if (!Array.isArray(data)) throw new Error('expected array')
-        const incoming: TimecodeEntry[] = data
-          .filter((e): e is Record<string, unknown> =>
-            typeof e === 'object' && e !== null &&
-            typeof (e as Record<string, unknown>).videoId === 'string' &&
-            typeof (e as Record<string, unknown>).seconds === 'number'
-          )
-          .map(e => ({
-            videoId: e.videoId as string,
-            seconds: e.seconds as number,
-            name: typeof e.name === 'string' ? e.name : '',
-          }))
+        const incoming = parseEntries(JSON.parse(reader.result as string))
         if (incoming.length === 0) { showToastLocal('No valid entries found', ''); return }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(incoming))
-        showToastLocal(`${incoming.length} timecode${incoming.length === 1 ? '' : 's'} imported`, '')
+        const added = mergeKeepLocal(incoming)
+        showToastLocal(`${plural(added, 'new timecode')} imported`, '')
       } catch {
         showToastLocal('Invalid JSON file', '')
       }
@@ -621,6 +757,52 @@ export function importTimecodes(): void {
     reader.readAsText(file)
   })
   input.click()
+}
+
+// Small key-driven choice dialog (m / o / n). Listens on window in the capture phase so
+// content.ts never sees these keys.
+type Choice = { key: string; label: string; run: () => void }
+
+function showChoice(message: string, options: Choice[]): void {
+  document.getElementById('bs-tc-choice')?.remove()
+  const el = document.createElement('div')
+  el.id = 'bs-tc-choice'
+
+  const msg = document.createElement('div')
+  msg.id = 'bs-tc-choice-msg'
+  msg.textContent = message
+  el.appendChild(msg)
+
+  for (const o of options) {
+    const btn = document.createElement('button')
+    btn.className = 'bs-tc-choice-btn'
+    btn.innerHTML = '<span></span>'
+    btn.querySelector('span')!.textContent = o.key
+    btn.append(` ${o.label}`)
+    btn.addEventListener('click', () => pick(o))
+    el.appendChild(btn)
+  }
+
+  function close(): void {
+    el.remove()
+    window.removeEventListener('keydown', onKey, true)
+  }
+
+  function pick(o: Choice): void {
+    close()
+    o.run()
+  }
+
+  function onKey(e: KeyboardEvent): void {
+    e.preventDefault()
+    e.stopImmediatePropagation()
+    if (e.key === 'Escape' || e.key === 'q') { close(); return }
+    const o = options.find(o => o.key === e.key.toLowerCase())
+    if (o) pick(o)
+  }
+
+  window.addEventListener('keydown', onKey, true)
+  document.documentElement.appendChild(el)
 }
 
 // --- Timecode watcher ---
