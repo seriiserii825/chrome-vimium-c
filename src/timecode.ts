@@ -923,5 +923,5 @@ function showToastLocal(message: string, prefix: string): void {
   setTimeout(() => {
     toast.classList.remove('bs-vimium-toast-visible')
     toast.addEventListener('transitionend', () => toast.remove(), { once: true })
-  }, 2500)
+  }, /failed/i.test(prefix) ? 8000 : 2500) // errors stay long enough to read
 }
