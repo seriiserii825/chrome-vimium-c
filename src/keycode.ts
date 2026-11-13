@@ -10,6 +10,7 @@ for (let i = 0; i < 26; i++) {
 CODE_TO_CHAR.Slash = ['/', '?'];
 CODE_TO_CHAR.Comma = [',', '<'];
 CODE_TO_CHAR.Period = ['.', '>'];
+CODE_TO_CHAR.Backslash = ['\\', '|'];
 
 export function physicalKey(e: KeyboardEvent): string {
   const pair = CODE_TO_CHAR[e.code];

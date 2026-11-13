@@ -108,3 +108,4 @@ vi,importTimecodes,Import timecodes from git backup (merge),timecode
 if,findInFields,Find text in input/textarea/select (Enter next; Esc jumps to field),find
 ?,showHelp,Show keyboard shortcuts,dev
 er,reloadExtension,Reload extension,dev
+A-\,toggleSite,Enable / disable extension on this site,dev

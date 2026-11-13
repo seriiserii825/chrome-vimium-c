@@ -84,6 +84,8 @@ Escape calls `unhoverLast()` which reverses both.
 
 **SEO tools** — `sh` (`seoinfo.ts`) shows a panel with meta title, description, og/twitter tags, and canonical URL. `st` (`seoheadings.ts`) shows the heading structure (h1–h3) as an outline panel. `Srl` (`seorel.ts`) lists every `a[rel]` / `area[rel]` with its rel value, text and href, plus rel badges on the page; clicking a row scrolls to the link and flashes an outline (hidden links are dimmed). `Stl` is the same panel for `target="_blank"` links (badge `_blank · <rel>`, to spot missing `noopener`; rows also show the link's `title` attribute when set). All panels close on Escape or `q`.
 
+**Per-site on/off** (`sites.ts`) — hostnames listed in `chrome.storage.local` `bs-disabled-sites`. On those hosts content.ts ignores every key (keydown/keyup return early; iframes use the top page's host via `location.ancestorOrigins`). `Alt+\` (`toggleSite`) toggles it — on a disabled site it's the only key content.ts still handles; the toolbar icon's right-click menu does the same ("Disable/Enable Vimium on host"). The icon gets an `OFF` badge on disabled tabs; the page shows a toast when the state changes.
+
 **Cookie confirm** (`cookieconfirm.ts`) — `dc` shows a confirmation dialog before deleting all cookies for the current domain and reloading. Prevents accidental logouts.
 
 **Image info** (`imageinfo.ts`) — `Ii` hint mode shows a popup with image dimensions, file size, and MIME type fetched via a `HEAD` request.
@@ -119,6 +121,7 @@ Escape calls `unhoverLast()` which reverses both.
 | `cookieconfirm.ts` | Delete-cookies confirmation dialog |
 | `help.ts` | Keyboard shortcuts popup |
 | `prompt.ts` | Reusable input prompt popup |
+| `sites.ts` | Per-site on/off list (`bs-disabled-sites`), shared by content + background |
 | `toast.ts` | Toast notifications |
 | `clipboard.ts` | `writeText()` helper — uses `navigator.clipboard` when available, falls back to `execCommand('copy')` for HTTP pages |
 | `maps.csv` | All keybindings (single source of truth) |

@@ -35,6 +35,7 @@ import { uploadWpPlugin, resumeWpNewPlugin } from "./wpnewplugin";
 import { makeWpBackup, resumeWpBackup } from "./wpbackup";
 import { findInAccess, resumeAccessSearch } from "./accesssearch";
 import { writeText, readText } from "./clipboard";
+import { DISABLED_SITES_KEY, hostOf, getDisabledSites, toggleSite } from "./sites";
 import { startScroll, stopScroll, scrollToTop, scrollToBottom, saveScrollPos, goScrollPos, clearScrollTarget } from "./scroll";
 import mappings from "../maps.csv";
 import projectsMappings from "../projects-map.csv";
@@ -152,7 +153,8 @@ type Action =
   | "showHistory"
   | "findInPage"
   | "findInFields"
-  | "reloadExtension";
+  | "reloadExtension"
+  | "toggleSite";
 
 function extractPostIdFromBodyClass(): string | null {
   const bodyClass = document.body.className || "";
@@ -559,6 +561,7 @@ const actions: Record<Action, () => void> = {
   seekForward: () => { seekVideo(10 * currentCount) },
   videoQuality: () => { void applyBestQuality() },
   reloadExtension: () => { try { chrome.runtime.sendMessage({ type: "reloadExtension" }) } catch {} },
+  toggleSite: () => { if (siteHost) void toggleSite(siteHost) },
   videoFullscreen: () => {
     const btn = document.querySelector('.ytp-fullscreen-button') as HTMLElement | null
     btn?.click()
@@ -667,6 +670,33 @@ if (window === window.top) {
   });
 }
 
+// Per-site off switch (see sites.ts). Iframes follow the top page's host, so a site
+// is switched off as a whole, embedded frames included.
+const siteHost = hostOf(location.ancestorOrigins?.length ? location.ancestorOrigins[location.ancestorOrigins.length - 1] : location.href);
+let siteDisabled = false;
+
+function applySiteState(list: string[], notify: boolean): void {
+  const disabled = !!siteHost && list.includes(siteHost);
+  if (disabled === siteDisabled) return;
+  siteDisabled = disabled;
+  if (disabled) {
+    clearPending();
+    clearCount();
+    stopScroll();
+  }
+  if (notify && window === window.top) {
+    showToast(disabled ? `off on ${siteHost} (Alt+\\ to enable)` : `on for ${siteHost}`, "Vimium: ");
+  }
+}
+
+void getDisabledSites().then((list) => applySiteState(list, false));
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes[DISABLED_SITES_KEY]) {
+    const list = changes[DISABLED_SITES_KEY].newValue;
+    applySiteState(Array.isArray(list) ? list : [], true);
+  }
+});
+
 function isEditing(): boolean {
   const el = document.activeElement;
   if (!el) return false;
@@ -703,6 +733,14 @@ document.addEventListener('focusin', (e) => {
 document.addEventListener(
   "keydown",
   (e: KeyboardEvent) => {
+    // Alt+\ (toggleSite) is the only key still handled on a disabled site
+    if (siteDisabled) {
+      if (e.altKey && !e.ctrlKey && !e.metaKey && altKeyMap.get(physicalKey(e)) === "toggleSite") {
+        e.preventDefault();
+        actions.toggleSite();
+      }
+      return;
+    }
     if (isWpPhpVisible()) {
       if (e.key === "Escape" || e.key === "q") {
         hideWpPhp();
@@ -879,6 +917,7 @@ document.addEventListener(
 document.addEventListener(
   "keyup",
   (e: KeyboardEvent) => {
+    if (siteDisabled) return;
     const action = keyMap.get(physicalKey(e));
     if (action && continuousActions.has(action)) {
       stopScroll();

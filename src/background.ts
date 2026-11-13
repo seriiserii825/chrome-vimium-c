@@ -1,3 +1,5 @@
+import { DISABLED_SITES_KEY, hostOf, getDisabledSites, toggleSite } from "./sites";
+
 (async () => {
   const res = await chrome.storage.local.get("reloadedToast");
   if (!res.reloadedToast) return;
@@ -347,4 +349,56 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: 
       if (toClose.length) chrome.tabs.remove(toClose);
     }
   });
+});
+
+// ── Per-site on/off (sites.ts) ─────────────────────────────────────────────
+// The content script stops handling keys on disabled hosts, so turning a site back on
+// also works from the toolbar icon's context menu (the page itself only listens to Alt+\).
+// The icon shows an "OFF" badge on tabs of disabled sites.
+const SITE_MENU_ID = "bs-toggle-site";
+
+async function updateSiteUi(tab: chrome.tabs.Tab | undefined): Promise<void> {
+  if (tab?.id === undefined) return;
+  const host = hostOf(tab.url);
+  const disabled = !!host && (await getDisabledSites()).includes(host);
+  chrome.action.setBadgeText({ tabId: tab.id, text: disabled ? "OFF" : "" });
+  chrome.action.setBadgeBackgroundColor({ tabId: tab.id, color: "#f38ba8" });
+  if (tab.active) {
+    chrome.contextMenus.update(SITE_MENU_ID, {
+      title: host ? `${disabled ? "Enable" : "Disable"} Vimium on ${host}` : "Vimium: not available on this page",
+      enabled: !!host,
+    }, () => void chrome.runtime.lastError);
+  }
+}
+
+async function toggleActiveTabSite(tab?: chrome.tabs.Tab): Promise<void> {
+  const target = tab ?? (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0];
+  const host = hostOf(target?.url);
+  if (host) await toggleSite(host);
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({ id: SITE_MENU_ID, title: "Disable Vimium on this site", contexts: ["action"] }, () => void chrome.runtime.lastError);
+});
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === SITE_MENU_ID) void toggleActiveTabSite(tab);
+});
+
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  chrome.tabs.get(tabId, (tab) => { if (!chrome.runtime.lastError) void updateSiteUi(tab); });
+});
+
+chrome.tabs.onUpdated.addListener((_tabId, change, tab) => {
+  if (change.url || change.status === "loading") void updateSiteUi(tab);
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local" || !changes[DISABLED_SITES_KEY]) return;
+  chrome.tabs.query({}, (tabs) => tabs.forEach((t) => void updateSiteUi(t)));
+});
+
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) return;
+  chrome.tabs.query({ active: true, windowId }, ([tab]) => void updateSiteUi(tab));
 });

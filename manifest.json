@@ -22,7 +22,7 @@
       "128": "icon128.png"
     }
   },
-  "permissions": ["tabs", "sessions", "downloads", "windows", "storage", "cookies", "scripting", "history", "management", "clipboardRead", "favicon", "nativeMessaging"],
+  "permissions": ["tabs", "sessions", "downloads", "windows", "storage", "cookies", "scripting", "history", "management", "clipboardRead", "favicon", "nativeMessaging", "contextMenus"],
   "host_permissions": ["<all_urls>"],
   "commands": {
     "_execute_action": {
