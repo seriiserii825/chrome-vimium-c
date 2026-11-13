@@ -715,8 +715,9 @@ function sendBackup(message: string): void {
 }
 
 // updated_at changes on every open, so it doesn't count as a difference.
+// Fixed key order: stored projects and parseProjects() output list keys in different orders.
 function contentKey(p: Project): string {
-  return JSON.stringify({ ...p, updated_at: 0 })
+  return JSON.stringify([p.id, p.title, p.items.map((t) => [t.id ?? null, t.title, t.url, t.active === true])])
 }
 
 // Projects present on only one side, or with different content on both.

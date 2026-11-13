@@ -122,6 +122,9 @@ def with_projects(reply: dict, projects: list) -> dict:
 
 
 def check(local_projects: list, since: str | None) -> dict:
+    if not is_repo():
+        # No git history to compare against — never claim "changed on another machine".
+        return {"ok": False, "error": f"{BACKUP_DIR} is not a git repo (fix with native/install.sh <dir>)"}
     pull_error = pull()
     reply = {"ok": True, "remoteChanged": False, "head": head(), "pullError": pull_error}
     remote = read_backup()

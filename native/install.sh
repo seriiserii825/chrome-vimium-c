@@ -61,5 +61,16 @@ done
 
 [[ $installed -eq 1 ]] || { echo "no Chrome/Chromium/Brave profile found" >&2; exit 1; }
 echo "projects host: $PROJECTS_PATH"
+# The wrapper is kept silently when run without an argument — show where backups really go.
+if [[ "$PROJECTS_PATH" == "$PROJECTS_WRAPPER" ]]; then
+  PROJECTS_DIR="$(sed -n 's/^VIMIUM_PROJECTS_DIR=\([^ ]*\) exec .*/\1/p' "$PROJECTS_WRAPPER")"
+  echo "projects dir: $PROJECTS_DIR (custom, kept from projects_backup.local.sh; change with install.sh <dir>)"
+else
+  PROJECTS_DIR="$HOME/Documents/vimium-tabs"
+  echo "projects dir: $PROJECTS_DIR (default)"
+fi
+if ! git -C "$PROJECTS_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "WARNING: $PROJECTS_DIR is not a git repo — Ctrl+E backups won't be committed or pushed" >&2
+fi
 echo "timecodes host: $TIMECODES_PATH"
 echo "logs: ~/.cache/vimium-projects-backup.log, ~/.cache/vimium-timecodes-backup.log"
