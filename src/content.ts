@@ -20,7 +20,7 @@ import { showPrompt, hidePrompt, isPromptVisible } from "./prompt";
 import { showWhichKey, hideWhichKey, isWhichKeyVisible } from "./whichkey";
 import { showCookieConfirm, hideCookieConfirm, isCookieConfirmVisible } from "./cookieconfirm";
 import { hideImageInfo, isImageInfoVisible } from "./imageinfo";
-import { showImageList, isImageListVisible, handleImageListKey } from "./imagelist";
+import { showImageList, isImageListVisible } from "./imagelist";
 import { showSeoInfo, hideSeoInfo, isSeoInfoVisible } from "./seoinfo";
 import { showSeoHeadings, hideSeoHeadings, isSeoHeadingsVisible } from "./seoheadings";
 import { showSeoRelLinks, showSeoBlankLinks, hideSeoRelLinks, isSeoRelLinksVisible } from "./seorel";
@@ -755,6 +755,8 @@ document.addEventListener(
     if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'NumLock', 'ScrollLock', 'AltGraph'].includes(e.key)) return;
     // The projects panel handles every key itself, including Escape and Ctrl combos
     if (isProjectsVisible()) return;
+    // Same for the images panel (Ia): its filter input handles every key
+    if (isImageListVisible()) return;
 
     // Ctrl+[ (как в vim) отменяет labels — Escape может перехватить страница (закрыть popup)
     const ctrlBracket = e.ctrlKey && !e.altKey && !e.metaKey && e.code === 'BracketLeft'
@@ -778,7 +780,6 @@ document.addEventListener(
       return;
     }
 
-    if (isImageListVisible()) { handleImageListKey(e, key); return; }
 
     if (winSession) {
       e.preventDefault();
