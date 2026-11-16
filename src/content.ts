@@ -4,6 +4,7 @@ import "./prompt.css";
 import "./whichkey.css";
 import "./cookieconfirm.css";
 import "./imageinfo.css";
+import "./imagelist.css";
 import "./seoinfo.css";
 import "./seoheadings.css";
 import "./seorel.css";
@@ -19,6 +20,7 @@ import { showPrompt, hidePrompt, isPromptVisible } from "./prompt";
 import { showWhichKey, hideWhichKey, isWhichKeyVisible } from "./whichkey";
 import { showCookieConfirm, hideCookieConfirm, isCookieConfirmVisible } from "./cookieconfirm";
 import { hideImageInfo, isImageInfoVisible } from "./imageinfo";
+import { showImageList, isImageListVisible, handleImageListKey } from "./imagelist";
 import { showSeoInfo, hideSeoInfo, isSeoInfoVisible } from "./seoinfo";
 import { showSeoHeadings, hideSeoHeadings, isSeoHeadingsVisible } from "./seoheadings";
 import { showSeoRelLinks, showSeoBlankLinks, hideSeoRelLinks, isSeoRelLinksVisible } from "./seorel";
@@ -117,6 +119,7 @@ type Action =
   | "moveTabToWindow"
   | "deleteCookiesRefresh"
   | "imageInfo"
+  | "imageList"
   | "copyImagePath"
   | "copyImageName"
   | "copyImageBasename"
@@ -493,6 +496,7 @@ const actions: Record<Action, () => void> = {
   imageInfo: () => {
     session = beginHints("ii");
   },
+  imageList: () => { showImageList(); },
   copyImagePath: () => {
     session = beginHints("ip");
   },
@@ -773,6 +777,8 @@ document.addEventListener(
       if (e.key === "Escape") { hidePrompt(); e.preventDefault(); }
       return;
     }
+
+    if (isImageListVisible()) { handleImageListKey(e, key); return; }
 
     if (winSession) {
       e.preventDefault();

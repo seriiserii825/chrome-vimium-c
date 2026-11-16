@@ -58,6 +58,7 @@ Hint modes (hotkeys are from `maps.csv` — check there for the authoritative li
 - `Io` — open image src in new tab
 - `Sc` — copy SVG code to clipboard; only top-level `<svg>` elements get hints (nested SVGs excluded)
 - `Ii` — show image info popup (dimensions, file size, type)
+- `Ia` — not a hint mode: `imagelist.ts` opens a scrollable panel of every `<img>` on the page (thumbnail, natural/shown size, type, file size from Resource Timing, alt, path; hidden ones dimmed). j/k select, Enter scrolls to + flashes the image, o opens it in a background tab, y/n/b copy path/name/basename, q/Escape close. content.ts routes all keydowns to `handleImageListKey` while it's open
 
 **Hover system** (`hints.ts`) — `A-h` activates hover mode. Two-pronged approach:
 1. CSS injection: reads all page stylesheets, rewrites `:hover` → `[data-bs-hover]`, injects as `<style>` tag, adds `data-bs-hover` attribute to target and ancestors. Handles CSS `:hover` effects (e.g. WordPress row-actions).
@@ -118,6 +119,7 @@ Escape calls `unhoverLast()` which reverses both.
 | `seoheadings.ts` | Heading structure panel |
 | `seorel.ts` | Links-with-rel / target=_blank panels (`Srl`, `Stl`) |
 | `imageinfo.ts` | Image info popup (dimensions, size, type) |
+| `imagelist.ts` | All-images panel (`Ia`) |
 | `cookieconfirm.ts` | Delete-cookies confirmation dialog |
 | `help.ts` | Keyboard shortcuts popup |
 | `prompt.ts` | Reusable input prompt popup |

@@ -38,6 +38,7 @@ Io,openImage,Open image,image
 Ic,copyImage,Copy image to clipboard,image
 Id,downloadImage,Download image,image
 Ii,imageInfo,Show image info popup,image
+Ia,imageList,List all images with info,image
 Ip,copyImagePath,Copy image path,image
 In,copyImageName,Copy image name,image
 Ib,copyImageBasename,Copy image basename,image
