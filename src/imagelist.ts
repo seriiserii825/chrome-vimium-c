@@ -26,15 +26,10 @@ function isVisible(el: HTMLElement): boolean {
   return rect.width > 0 || rect.height > 0
 }
 
-function flash(el: HTMLElement): void {
-  const prevOutline = el.style.outline
-  const prevOffset = el.style.outlineOffset
-  el.style.outline = '3px solid #f9e2af'
-  el.style.outlineOffset = '2px'
-  setTimeout(() => {
-    el.style.outline = prevOutline
-    el.style.outlineOffset = prevOffset
-  }, 1500)
+// The image picked last keeps a border (until the next pick or reload), so it's easy to find again.
+function markPicked(el: HTMLElement): void {
+  document.querySelectorAll('.bs-imglist-picked').forEach((e) => e.classList.remove('bs-imglist-picked'))
+  el.classList.add('bs-imglist-picked')
 }
 
 function formatBytes(n: number): string {
@@ -234,7 +229,7 @@ function goToSelected(): void {
   hideImageList()
   if (!img) return
   img.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  if (isVisible(img)) flash(img)
+  markPicked(img)
 }
 
 function copy(kind: 'src' | 'filename' | 'basename'): void {

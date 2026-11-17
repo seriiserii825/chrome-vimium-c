@@ -42,7 +42,7 @@ Adding a new action requires: a new row in `maps.csv`, a new entry in the `Actio
 Hint placement: each hint is placed at the element's own `getBoundingClientRect()` top-left. `getClickable()` excludes elements inside `<svg>` from the cursor-pointer check (they only inherit cursor and are not independently clickable), preventing duplicate stacked hints on icon buttons.
 
 Hint modes (hotkeys are from `maps.csv` — check there for the authoritative list):
-- `f` — follow link (click) in current tab
+- `f` — follow link (click) in current tab. Links clicked via hints (`f`, `F`, `om`, generic click modes) get `.bs-clicked-link` → green text until reload
 - `F` — follow link in new tab
 - `c` — toggle checkbox / radio / select
 - `oml` — open multiple links in background tabs (Enter to finish)
@@ -58,7 +58,7 @@ Hint modes (hotkeys are from `maps.csv` — check there for the authoritative li
 - `Io` — open image src in new tab
 - `Sc` — copy SVG code to clipboard; only top-level `<svg>` elements get hints (nested SVGs excluded)
 - `Ii` — show image info popup (dimensions, file size, type)
-- `Ia` — not a hint mode: `imagelist.ts` opens a scrollable panel of every `<img>` on the page (thumbnail, natural/shown size, type, file size from Resource Timing, alt, path; hidden ones dimmed) with a filter input on top (every space-separated term must match name/size/type/alt/path). The input owns the keyboard — content.ts returns early while the panel is open (like Projects), and panel mousedown is prevented so focus stays in the input: Tab/↓/Ctrl+J next, Shift+Tab/↑/Ctrl+K prev (wrap), PgDn/PgUp ±5, Enter scrolls to + flashes the image, Ctrl+O opens it in a background tab, Ctrl+Y/Ctrl+E/Ctrl+B copy path/name/basename, Escape close
+- `Ia` — not a hint mode: `imagelist.ts` opens a scrollable panel of every `<img>` on the page (thumbnail, natural/shown size, type, file size from Resource Timing, alt, path; hidden ones dimmed) with a filter input on top (every space-separated term must match name/size/type/alt/path). The input owns the keyboard — content.ts returns early while the panel is open (like Projects), and panel mousedown is prevented so focus stays in the input: Tab/↓/Ctrl+J next, Shift+Tab/↑/Ctrl+K prev (wrap), PgDn/PgUp ±5, Enter scrolls to the image and marks it with a violet inset outline + `opacity: 0.6` (`.bs-imglist-picked`; inset + opacity because overflow:hidden parents clip an outer outline, moves to the next picked image), Ctrl+O opens it in a background tab, Ctrl+Y/Ctrl+E/Ctrl+B copy path/name/basename, Escape close
 
 **Hover system** (`hints.ts`) — `A-h` activates hover mode. Two-pronged approach:
 1. CSS injection: reads all page stylesheets, rewrites `:hover` → `[data-bs-hover]`, injects as `<style>` tag, adds `data-bs-hover` attribute to target and ancestors. Handles CSS `:hover` effects (e.g. WordPress row-actions).

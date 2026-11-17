@@ -527,6 +527,7 @@ export function typeHint(session: HintSession, key: string): 'continue' | 'done'
     const entries = session.collectedEntries
     if (entries && entries.length > 0) {
       for (const entry of entries) {
+        markClickedLink(entry.el)
         const anchor = entry.el instanceof HTMLAnchorElement ? entry.el : entry.el.closest('a[href]')
         if (anchor instanceof HTMLAnchorElement && anchor.href) {
           chrome.runtime.sendMessage({ type: 'openTab', url: anchor.href })
@@ -694,8 +695,15 @@ async function copyImageToClipboard(imgEl: HTMLImageElement): Promise<void> {
   }
 }
 
+// Links followed via hints turn green (persists until reload) so it's visible what was clicked.
+function markClickedLink(el: HTMLElement): void {
+  const anchor = el.closest('a[href]')
+  if (anchor) anchor.classList.add('bs-clicked-link')
+}
+
 function activate(entry: HintEntry, mode: HintMode, count = 1): void {
   if (mode === 'f') {
+    markClickedLink(entry.el)
     const clickEl = entry.clickTarget ?? entry.el
     clickEl.focus()
     for (let i = 0; i < count; i++) clickEl.click()
@@ -798,6 +806,7 @@ function activate(entry: HintEntry, mode: HintMode, count = 1): void {
     writeText(html)
     showToast(mode === 'hci' ? 'Inner HTML copied' : 'Outer HTML copied')
   } else if (mode === 'F') {
+    markClickedLink(entry.el)
     const anchor = entry.el instanceof HTMLAnchorElement ? entry.el : entry.el.closest('a[href]')
     if (anchor instanceof HTMLAnchorElement && anchor.href) {
       window.open(anchor.href, '_blank')
@@ -824,6 +833,7 @@ function activate(entry: HintEntry, mode: HintMode, count = 1): void {
     dispatchMouse(entry.el, 'mouseover', cx, cy)
     dispatchMouse(entry.el, 'mousemove', cx, cy)
   } else {
+    markClickedLink(entry.el)
     const clickEl = entry.clickTarget ?? entry.el
     clickEl.focus()
     clickEl.click()

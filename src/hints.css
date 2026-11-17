@@ -62,3 +62,8 @@
   opacity: 1;
   transform: translateY(0);
 }
+
+a.bs-clicked-link,
+a.bs-clicked-link * {
+  color: #22c55e !important;
+}
