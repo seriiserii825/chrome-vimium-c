@@ -44,7 +44,10 @@ function getClickable(): Clickable[] {
 
   // For hidden interactive elements (e.g. visually-replaced checkboxes/radios),
   // place hint on closest visible ancestor but keep original as clickTarget.
+  // Only form controls: a hidden link/button (e.g. a hover-only "remove" icon) would
+  // otherwise hijack its ancestor's hint and fire instead of the ancestor itself.
   for (const el of fromSelector) {
+    if (!(el instanceof HTMLInputElement || el instanceof HTMLSelectElement)) continue
     if (!isVisible(el)) {
       let p = el.parentElement
       while (p) {
@@ -54,11 +57,30 @@ function getClickable(): Clickable[] {
     }
   }
 
+  // `cursor` is inherited, so plain wrappers around a real control (e.g. ACF gallery's
+  // `div.actions` around `a.acf-gallery-remove`) also look clickable. When such a wrapper
+  // starts at the same point as the control inside it, its hint would take that spot and
+  // the control's hint would be pushed away — so clicking "the X" hits the wrapper instead.
+  // Skip pointer-only ancestors that share their top-left with a real clickable descendant.
+  const EPS = 3
+  const shadowed = new Set<HTMLElement>()
+  for (const el of fromSelector) {
+    if (!isVisible(el)) continue
+    const r = el.getBoundingClientRect()
+    let p = el.parentElement
+    while (p && p !== document.body) {
+      const pr = p.getBoundingClientRect()
+      if (Math.abs(pr.left - r.left) > EPS || Math.abs(pr.top - r.top) > EPS) break
+      shadowed.add(p)
+      p = p.parentElement
+    }
+  }
+
   for (const el of Array.from(document.querySelectorAll<HTMLElement>('*'))) {
     if (!isVisible(el)) continue
     if (fromSelector.has(el)) {
       add(el)
-    } else if (window.getComputedStyle(el).cursor === 'pointer' && !el.closest('svg')) {
+    } else if (!shadowed.has(el) && window.getComputedStyle(el).cursor === 'pointer' && !el.closest('svg')) {
       add(el)
     }
   }
