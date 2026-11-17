@@ -387,6 +387,63 @@ function getLinksAndButtons(): Clickable[] {
   return result
 }
 
+// Candidate shifts in hint-size units, nearest first. Ties prefer right, then down, then up,
+// then left — right/down keep the hint over its own element instead of over a neighbour above.
+const HINT_SHIFTS: Array<[number, number]> = (() => {
+  const out: Array<[number, number, number]> = []
+  const pref = (dx: number, dy: number) => (dx > 0 ? 0 : dy > 0 ? 1 : dy < 0 ? 2 : 3)
+  for (let dy = -3; dy <= 3; dy++) {
+    for (let dx = -2; dx <= 4; dx++) {
+      // a hint is ~1.5× wider than tall, so weigh steps by that ratio
+      out.push([dx, dy, (dx * 1.5) ** 2 + dy ** 2 + pref(dx, dy) * 0.01])
+    }
+  }
+  return out.sort((a, b) => a[2] - b[2]).map(([dx, dy]) => [dx, dy])
+})()
+
+// Place each hint at its element's top-left; if that overlaps an already placed hint, take the
+// nearest free spot from HINT_SHIFTS. Hints are placed in document order, so an ancestor keeps
+// its natural spot and the nested elements that start at the same point move aside.
+function layoutHints(rects: DOMRect[], sizes: Array<{ w: number; h: number }>): Array<{ left: number; top: number }> {
+  const GAP = 1
+  const CELL = 32
+  const grid = new Map<string, Array<{ l: number; t: number; r: number; b: number }>>()
+  const cellsOf = (l: number, t: number, r: number, b: number) => {
+    const keys: string[] = []
+    for (let cx = Math.floor(l / CELL); cx <= Math.floor(r / CELL); cx++) {
+      for (let cy = Math.floor(t / CELL); cy <= Math.floor(b / CELL); cy++) keys.push(`${cx},${cy}`)
+    }
+    return keys
+  }
+  const isFree = (l: number, t: number, r: number, b: number) => {
+    for (const k of cellsOf(l, t, r, b)) {
+      for (const o of grid.get(k) ?? []) {
+        if (l < o.r && r > o.l && t < o.b && b > o.t) return false
+      }
+    }
+    return true
+  }
+  const maxL = window.innerWidth, maxT = window.innerHeight
+
+  return rects.map((rect, i) => {
+    const { w, h } = sizes[i]
+    const baseL = Math.max(0, Math.min(Math.round(rect.left), maxL - w))
+    const baseT = Math.max(0, Math.min(Math.round(rect.top), maxT - h))
+    let left = baseL, top = baseT
+    for (const [dx, dy] of HINT_SHIFTS) {
+      const l = baseL + dx * (w + GAP), t = baseT + dy * (h + GAP)
+      if (l < 0 || t < 0 || l + w > maxL || t + h > maxT) continue
+      if (isFree(l, t, l + w, t + h)) { left = l; top = t; break }
+    }
+    const box = { l: left, t: top, r: left + w + GAP, b: top + h + GAP }
+    for (const k of cellsOf(box.l, box.t, box.r, box.b)) {
+      const list = grid.get(k)
+      if (list) list.push(box); else grid.set(k, [box])
+    }
+    return { left, top }
+  })
+}
+
 export function beginHints(mode: HintMode, count = 1): HintSession | null {
   const rawElements: HTMLElement[] | Clickable[] =
     (mode === 'y' || mode === 'ym' || mode === 'ydv' || mode === 'hci' || mode === 'hco') ? getCopyable()
@@ -416,48 +473,22 @@ export function beginHints(mode: HintMode, count = 1): HintSession | null {
   container.id = 'bs-vimium-hints'
   document.documentElement.appendChild(container)
 
-  // Nested elements (e.g. <strong> as the first child of <p>) can share the exact
-  // same top-left point, so their hints would paint on top of each other and only the
-  // topmost (last-appended) one would ever be clickable. Detect real ancestor/descendant
-  // pairs whose rects nearly coincide (exact rounded-pixel matching is too fragile — sub-pixel
-  // layout differences make ancestor and descendant round to different integers) and push the
-  // nested (descendant) element's hint diagonally out of the way, once per matching ancestor.
-  // The outermost element (e.g. the <p>) keeps its natural position at the visible text start,
-  // since that's the one users expect to find there — it also copies the full text including
-  // nested children via innerText.
-  const EPS = 3
+  // Create every node first, then measure them all in one layout pass.
   const rects = clickables.map(({ el }) => el.getBoundingClientRect())
-  const offsetLevels = clickables.map(({ el }, i) => {
-    let level = 0
-    for (let j = 0; j < clickables.length; j++) {
-      if (i === j) continue
-      const otherEl = clickables[j].el
-      if (!otherEl.contains(el)) continue // otherEl is an ancestor of el
-      const a = rects[i], b = rects[j]
-      if (Math.abs(a.left - b.left) <= EPS && Math.abs(a.top - b.top) <= EPS) level++
-    }
-    return level
-  })
-
   const entries: HintEntry[] = clickables.map(({ el, clickTarget }, i) => {
-    const r = rects[i]
-    const level = offsetLevels[i]
-    // A colliding nested element starts at the exact same point as its ancestor, so there's
-    // no usable spot "at its start" that isn't already taken — and its right edge sits right
-    // where the NEXT sibling's text begins, which visually reads as belonging to that sibling
-    // instead. Move it straight up, clear of the line's own text entirely, so it can't be
-    // mistaken for any of the surrounding content.
-    const left = Math.round(r.left) + (level > 0 ? (level - 1) * 14 : 0)
-    const top = Math.round(r.top) - level * 16
-
     const node = document.createElement('div')
     node.className = 'bs-vimium-hint'
     node.textContent = labels[i]
-    // Container is position:fixed at (0,0), so these are viewport coords
-    node.style.left = `${left}px`
-    node.style.top = `${top}px`
     container.appendChild(node)
     return { el, clickTarget, label: labels[i], node }
+  })
+  const sizes = entries.map(({ node }) => ({ w: node.offsetWidth, h: node.offsetHeight }))
+
+  // Container is position:fixed at (0,0), so positions are viewport coords.
+  const positions = layoutHints(rects, sizes)
+  entries.forEach(({ node }, i) => {
+    node.style.left = `${positions[i].left}px`
+    node.style.top = `${positions[i].top}px`
   })
 
   return { mode, entries, typed: '', container, count: Math.max(1, count) }
