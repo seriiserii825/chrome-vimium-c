@@ -207,9 +207,13 @@ const ADMIN_PATHS: string[] = __ADMIN_PATHS__;
 // Status codes can't be trusted (themes serve soft 404 pages with 200, WordPress redirects
 // unknown paths), so the response body must contain the login form. Redirects are followed:
 // /wp-admin → wp-login.php yields the final wp-login.php URL.
-async function probeAdminLogin(url: string): Promise<string | null> {
+// Slow shared hosts serve the parallel probes almost one by one (6 probes ≈ 6s), so the
+// timeout must be generous; the caller aborts the rest via `signal` once it has an answer.
+async function probeAdminLogin(url: string, signal: AbortSignal): Promise<string | null> {
   try {
-    const res = await fetch(url, { cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(4000) });
+    const res = await fetch(url, {
+      cache: "no-store", credentials: "omit", signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
+    });
     if (!res.ok) return null;
     const html = await res.text();
     if (!/name=["']pwd["']/.test(html)) return null;
@@ -284,12 +288,17 @@ async function findAdminLoginUrl(): Promise<string> {
   const base = wpBaseUrl();
   // Probe all paths in parallel, but respect priority order: pick the highest-priority
   // path that works, once all higher ones are known not to
-  const checks = ADMIN_PATHS.map((path) => probeAdminLogin(base + path));
-  for (const check of checks) {
-    const found = await check;
-    if (found) return found;
+  const ctrl = new AbortController();
+  const checks = ADMIN_PATHS.map((path) => probeAdminLogin(base + path, ctrl.signal));
+  try {
+    for (const check of checks) {
+      const found = await check;
+      if (found) return found;
+    }
+    return `${base}/wp-login.php`;
+  } finally {
+    ctrl.abort(); // lower-priority probes still running are no longer needed
   }
-  return `${base}/wp-login.php`;
 }
 
 async function goAdminLogin(): Promise<void> {
