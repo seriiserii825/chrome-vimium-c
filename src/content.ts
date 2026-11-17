@@ -276,11 +276,22 @@ function wpBaseUrl(): string {
     try {
       const url = new URL(raw, window.location.href);
       if (url.origin !== origin) continue;
-      const m = url.pathname.match(/^(.*?)\/(?:wp-content|wp-includes|wp-admin|wp-json)(?:\/|$)/);
-      if (m) return origin + m[1];
+      const m = url.pathname.match(/^(.*?)\/(wp-content|wp-includes|wp-admin|wp-json)(?:\/|$)/);
+      if (!m) continue;
+      // WPML/Polylang put REST links under the language (/en/wp-json/) — that's not the install root
+      const dir = m[2] === "wp-json" ? m[1].replace(/\/[a-z]{2}(?:[-_][a-z]{2,4})?$/i, "") : m[1];
+      return origin + dir;
     } catch { /* ignore malformed URL */ }
   }
   return origin;
+}
+
+// Language segment right after the site base in the current URL: "/en", "/fr", "/pt-br", or "".
+function langPrefix(base: string): string {
+  const { href } = window.location;
+  const rest = href.startsWith(base) ? href.slice(base.length) : window.location.pathname;
+  const m = rest.match(/^\/([a-z]{2}(?:[-_][a-z]{2,4})?)(?=[/?#]|$)/i);
+  return m ? `/${m[1]}` : "";
 }
 
 // First admin login path (from ADMIN_PATHS) that serves a login form; falls back to wp-login.php.
@@ -288,8 +299,12 @@ async function findAdminLoginUrl(): Promise<string> {
   const base = wpBaseUrl();
   // Probe all paths in parallel, but respect priority order: pick the highest-priority
   // path that works, once all higher ones are known not to
+  // Multilingual sites (WPML/Polylang) may serve the login only under the language prefix
+  // (/en/gestione), so each path is also probed as base + /<lang> + path, right after the plain one
+  const lang = langPrefix(base);
+  const urls = ADMIN_PATHS.flatMap((path) => lang ? [base + path, base + lang + path] : [base + path]);
   const ctrl = new AbortController();
-  const checks = ADMIN_PATHS.map((path) => probeAdminLogin(base + path, ctrl.signal));
+  const checks = urls.map((url) => probeAdminLogin(url, ctrl.signal));
   try {
     for (const check of checks) {
       const found = await check;
