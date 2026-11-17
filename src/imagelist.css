@@ -196,6 +196,6 @@
 
 /* inset outline: absolutely positioned images inside overflow:hidden parents clip an outer outline */
 img.bs-imglist-picked {
-  outline: 3px solid #cba6f7 !important;
-  outline-offset: -3px !important;
+  outline: 3px solid #22c55e !important;
+  outline-offset: -5px !important;
 }
