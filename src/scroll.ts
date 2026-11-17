@@ -160,6 +160,7 @@ function tick(now: number): void {
     }
   }
 
-  (scroller() ?? window).scrollBy(0, vel * dt);
+  // "instant": otherwise CSS scroll-behavior: smooth restarts a smooth animation every frame and barely moves
+  (scroller() ?? window).scrollBy({ top: vel * dt, behavior: "instant" });
   rafId = requestAnimationFrame(tick);
 }
