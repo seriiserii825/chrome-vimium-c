@@ -301,8 +301,20 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: 
 
   if (type === "navigateTo" && msg.url) {
     // left: right next to the sender's tab, on its left (takes its index, pushing it right).
-    const index = msg.left ? _sender.tab?.index : undefined;
-    chrome.tabs.create({ url: msg.url, active: true, index });
+    // Always in the sender's window (not the last focused one): wa/wl probe the site first,
+    // and meanwhile the user may have switched to another window. Activated only when the
+    // sender tab is still the active one, so it doesn't yank the user from another tab.
+    // tabs.create({ active: true }) also shows/raises the window (on Linux the WM then
+    // jumps to its desktop), so the tab is created inactive and activated with tabs.update,
+    // which only switches the tab inside its window without touching OS focus.
+    const sender = _sender.tab;
+    void (async () => {
+      const fresh = sender?.id !== undefined ? await chrome.tabs.get(sender.id).catch(() => undefined) : undefined;
+      const index = msg.left ? fresh?.index ?? sender?.index : undefined;
+      const activate = fresh ? fresh.active : true;
+      const tab = await chrome.tabs.create({ url: msg.url, active: false, index, windowId: fresh?.windowId ?? sender?.windowId });
+      if (activate && tab.id !== undefined) await chrome.tabs.update(tab.id, { active: true });
+    })();
     sendResponse({ ok: true });
     return;
   }
