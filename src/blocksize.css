@@ -1,0 +1,67 @@
+#bs-blocksize-outline {
+  position: fixed;
+  box-sizing: border-box;
+  outline: 2px dashed #f38ba8;
+  background: rgba(243, 139, 168, 0.12);
+  pointer-events: none;
+  z-index: 2147483646;
+}
+
+#bs-blocksize {
+  position: fixed;
+  background: #1e1e2e;
+  color: #cdd6f4;
+  border-radius: 8px;
+  border: 1px solid #313244;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.7);
+  width: 280px;
+  font-family: monospace;
+  overflow: hidden;
+  z-index: 2147483647;
+}
+
+#bs-blocksize-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #313244;
+  font-size: 13px;
+  font-weight: 600;
+  color: #cba6f7;
+}
+
+#bs-blocksize-header span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#bs-blocksize-close {
+  background: none;
+  border: none;
+  color: #6c7086;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+#bs-blocksize-close:hover {
+  color: #cdd6f4;
+}
+
+#bs-blocksize-body {
+  padding: 6px 0;
+}
+
+.bs-blocksize-label {
+  min-width: 56px;
+}
+
+#bs-blocksize-footer {
+  display: flex;
+  padding: 10px 14px;
+  border-top: 1px solid #313244;
+}

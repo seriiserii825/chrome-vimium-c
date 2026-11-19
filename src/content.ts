@@ -4,6 +4,7 @@ import "./prompt.css";
 import "./whichkey.css";
 import "./cookieconfirm.css";
 import "./imageinfo.css";
+import "./blocksize.css";
 import "./imagelist.css";
 import "./seoinfo.css";
 import "./seoheadings.css";
@@ -20,6 +21,7 @@ import { showPrompt, hidePrompt, isPromptVisible } from "./prompt";
 import { showWhichKey, hideWhichKey, isWhichKeyVisible } from "./whichkey";
 import { showCookieConfirm, hideCookieConfirm, isCookieConfirmVisible } from "./cookieconfirm";
 import { hideImageInfo, isImageInfoVisible } from "./imageinfo";
+import { hideBlockSize, isBlockSizeVisible } from "./blocksize";
 import { showImageList, isImageListVisible } from "./imagelist";
 import { showSeoInfo, hideSeoInfo, isSeoInfoVisible } from "./seoinfo";
 import { showSeoHeadings, hideSeoHeadings, isSeoHeadingsVisible } from "./seoheadings";
@@ -114,6 +116,7 @@ type Action =
   | "copyImage"
   | "copySvg"
   | "scrollBlock"
+  | "blockSize"
   | "openImage"
   | "openIncognito"
   | "moveTabToWindow"
@@ -409,6 +412,7 @@ const actions: Record<Action, () => void> = {
   copyImage:     () => { session = beginHints("ci"); },
   copySvg:       () => { session = beginHints("cs"); },
   scrollBlock:   () => { session = beginHints("sb"); if (!session) showToast("No scrollable blocks", ""); },
+  blockSize:     () => { hideBlockSize(); session = beginHints("bs"); if (!session) showToast("No blocks", ""); },
   openImage:     () => { session = beginHints("oI"); },
   openIncognito: () => { chrome.runtime.sendMessage({ type: "openIncognito" }) },
   editUrlCurrentTab: () => {
@@ -860,6 +864,7 @@ document.addEventListener(
       if (isWhichKeyVisible()) { clearPending(); e.preventDefault(); return; }
       if (isCookieConfirmVisible()) { hideCookieConfirm(); e.preventDefault(); return; }
       if (isImageInfoVisible()) { hideImageInfo(); e.preventDefault(); return; }
+      if (isBlockSizeVisible()) { hideBlockSize(); e.preventDefault(); return; }
       if (isSeoInfoVisible()) { hideSeoInfo(); e.preventDefault(); return; }
       if (isSeoHeadingsVisible()) { hideSeoHeadings(); e.preventDefault(); return; }
       if (isSeoRelLinksVisible()) { hideSeoRelLinks(); e.preventDefault(); return; }
@@ -880,6 +885,7 @@ document.addEventListener(
     if (isTimecodeVisible() && key === "q") { hideTimecode(); e.preventDefault(); return; }
     if (isCookieConfirmVisible() && key === "q") { hideCookieConfirm(); e.preventDefault(); return; }
     if (isImageInfoVisible() && key === "q") { hideImageInfo(); e.preventDefault(); return; }
+    if (isBlockSizeVisible() && key === "q") { hideBlockSize(); e.preventDefault(); return; }
     if (isSeoInfoVisible() && key === "q") { hideSeoInfo(); e.preventDefault(); return; }
     if (isSeoHeadingsVisible() && key === "q") { hideSeoHeadings(); e.preventDefault(); return; }
     if (isSeoRelLinksVisible() && key === "q") { hideSeoRelLinks(); e.preventDefault(); return; }

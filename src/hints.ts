@@ -2,6 +2,7 @@ import { showToast } from './toast'
 import { showImageInfo, getImageNames } from './imageinfo'
 import { writeText, readText } from './clipboard'
 import { getScrollableBlocks, setScrollTarget } from './scroll'
+import { getBlocks, showBlockSize } from './blocksize'
 
 // Home-row first, then nearby keys for comfortable typing
 const CHARS = 'sadfjklewcpghnrtuoibvyxz'
@@ -110,7 +111,7 @@ export function generateLabels(n: number): string[] {
   return labels
 }
 
-export type HintMode = 'f' | 'F' | 'y' | 'yl' | 'yi' | 'ym' | 'ymi' | 'yml' | 'ydv' | 'ydl' | 'om' | 'ymf' | 'h' | 'di' | 'ci' | 'cs' | 'oI' | 'oV' | 'ii' | 'ip' | 'in' | 'ib' | 'ctc' | 'ctmc' | 'ie' | 'ic' | 'is' | 'pi' | 'ptc' | 'c' | 'ygc' | 'ygo' | 'hci' | 'hco' | 'sb'
+export type HintMode = 'f' | 'F' | 'y' | 'yl' | 'yi' | 'ym' | 'ymi' | 'yml' | 'ydv' | 'ydl' | 'om' | 'ymf' | 'h' | 'di' | 'ci' | 'cs' | 'oI' | 'oV' | 'ii' | 'ip' | 'in' | 'ib' | 'ctc' | 'ctmc' | 'ie' | 'ic' | 'is' | 'pi' | 'ptc' | 'c' | 'ygc' | 'ygo' | 'hci' | 'hco' | 'sb' | 'bs'
 
 export interface HintEntry {
   el: HTMLElement
@@ -456,6 +457,7 @@ export function beginHints(mode: HintMode, count = 1): HintSession | null {
     : mode === 'oV' ? Array.from(document.querySelectorAll<HTMLElement>('video')).filter(isVisible)
     : mode === 'h' ? getHoverable()
     : mode === 'sb' ? getScrollableBlocks().filter(isVisible)
+    : mode === 'bs' ? getBlocks()
     : (mode === 'ctc' || mode === 'ctmc') ? getTableColumns()
     : mode === 'ymf' ? getCheckboxesAndRadios()
     : mode === 'c' ? getFormControls()
@@ -817,6 +819,8 @@ function activate(entry: HintEntry, mode: HintMode, count = 1): void {
     }
   } else if (mode === 'sb') {
     setScrollTarget(entry.el)
+  } else if (mode === 'bs') {
+    showBlockSize(entry.el)
   } else if (mode === 'h') {
     unhoverLast()
     lastHovered = entry.el

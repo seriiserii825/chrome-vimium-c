@@ -57,6 +57,7 @@ Hint modes (hotkeys are from `maps.csv` — check there for the authoritative li
 - `Ic` — copy image to clipboard as PNG blob (canvas approach for cross-origin, when `navigator.clipboard.write` is available); falls back to `execCommand('copy')` via a `Range` selection on the `<img>` element on HTTP pages or when the canvas/CORS path fails
 - `Io` — open image src in new tab
 - `Sc` — copy SVG code to clipboard; only top-level `<svg>` elements get hints (nested SVGs excluded)
+- `bs` — hints on visible block-level elements (wrappers with the same box as their parent skipped, max 196, largest kept); picking one outlines it and shows a popup with size, content size, padding/border/margin, box-sizing, scroll size (`blocksize.ts`). Escape / `q` closes
 - `Ii` — show image info popup (dimensions, file size, type)
 - `Ia` — not a hint mode: `imagelist.ts` opens a scrollable panel of every `<img>` on the page (thumbnail, natural/shown size, type, file size from Resource Timing, alt, path; hidden ones dimmed) with a filter input on top (every space-separated term must match name/size/type/alt/path). The input owns the keyboard — content.ts returns early while the panel is open (like Projects), and panel mousedown is prevented so focus stays in the input: Tab/↓/Ctrl+J next, Shift+Tab/↑/Ctrl+K prev (wrap), PgDn/PgUp ±5, Enter scrolls to the image and marks it with a green inset outline (same #22c55e as clicked links) (`.bs-imglist-picked`; inset because overflow:hidden parents clip an outer outline, moves to the next picked image), Ctrl+O opens it in a background tab, Ctrl+Y/Ctrl+E/Ctrl+B copy path/name/basename, Escape close
 
@@ -120,6 +121,7 @@ Escape calls `unhoverLast()` which reverses both.
 | `seorel.ts` | Links-with-rel / target=_blank panels (`Srl`, `Stl`) |
 | `imageinfo.ts` | Image info popup (dimensions, size, type) |
 | `imagelist.ts` | All-images panel (`Ia`) |
+| `blocksize.ts` | Block size popup (`bs`) |
 | `cookieconfirm.ts` | Delete-cookies confirmation dialog |
 | `help.ts` | Keyboard shortcuts popup |
 | `prompt.ts` | Reusable input prompt popup |
