@@ -1,5 +1,5 @@
 import { writeText } from './clipboard'
-import { getImageNames } from './imageinfo'
+import { fileSize, getImageNames } from './imageinfo'
 import { showToast } from './toast'
 
 // Ia — panel listing every <img> on the page with its info, filtered by the input on top.
@@ -36,14 +36,6 @@ function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
   return `${(n / 1024 / 1024).toFixed(2)} MB`
-}
-
-// File size from the Resource Timing entry — no extra request. Cross-origin images
-// without Timing-Allow-Origin report 0, and data: URLs have no entry at all.
-function fileSize(src: string): number {
-  if (src.startsWith('data:')) return Math.round((src.length - src.indexOf(',') - 1) * 0.75)
-  const entry = performance.getEntriesByName(src)[0] as PerformanceResourceTiming | undefined
-  return entry?.encodedBodySize || entry?.transferSize || 0
 }
 
 function fileType(src: string, filename: string): string {

@@ -9,6 +9,28 @@ export function getImageNames(img: HTMLImageElement): { src: string; filename: s
   return { src, filename, basename }
 }
 
+// File size from the Resource Timing entry — no extra request. Cross-origin images
+// without Timing-Allow-Origin report 0, and data: URLs have no entry at all.
+export function fileSize(src: string): number {
+  if (src.startsWith('data:')) return Math.round((src.length - src.indexOf(',') - 1) * 0.75)
+  const entry = performance.getEntriesByName(src)[0] as PerformanceResourceTiming | undefined
+  return entry?.encodedBodySize || entry?.transferSize || 0
+}
+
+function formatKB(n: number): string {
+  return `${(n / 1024).toFixed(1)} KB`
+}
+
+// Fallback when Resource Timing has no size: HEAD request for Content-Length.
+async function fetchSize(src: string): Promise<number> {
+  try {
+    const res = await fetch(src, { method: 'HEAD', cache: 'force-cache' })
+    return Number(res.headers.get('content-length')) || 0
+  } catch {
+    return 0
+  }
+}
+
 export function showImageInfo(img: HTMLImageElement): void {
   hideImageInfo()
 
@@ -38,6 +60,16 @@ export function showImageInfo(img: HTMLImageElement): void {
   body.id = 'bs-imginfo-body'
 
   addRow(body, 'Size', width && height ? `${width} × ${height}` : '? × ?', '')
+  const knownSize = fileSize(src)
+  const weightEl = addRow(body, 'Weight', knownSize ? formatKB(knownSize) : '…', '')
+  if (!knownSize) {
+    const current = panel
+    void fetchSize(src).then((n) => {
+      if (panel !== current) return
+      weightEl.textContent = n ? formatKB(n) : '?'
+      weightEl.title = weightEl.textContent
+    })
+  }
   addRow(body, 'Name', filename, '')
   addRow(body, 'Path', src, 'bs-imginfo-path')
 
@@ -73,7 +105,7 @@ export function showImageInfo(img: HTMLImageElement): void {
   panel.style.left = `${Math.round(left)}px`
 }
 
-function addRow(parent: HTMLElement, label: string, value: string, extraClass: string): void {
+function addRow(parent: HTMLElement, label: string, value: string, extraClass: string): HTMLElement {
   const row = document.createElement('div')
   row.className = 'bs-imginfo-row'
 
@@ -89,6 +121,7 @@ function addRow(parent: HTMLElement, label: string, value: string, extraClass: s
   row.appendChild(lbl)
   row.appendChild(val)
   parent.appendChild(row)
+  return val
 }
 
 function makeBtn(text: string, action: () => void): HTMLButtonElement {
