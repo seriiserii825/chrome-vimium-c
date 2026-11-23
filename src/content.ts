@@ -9,6 +9,7 @@ import "./imagelist.css";
 import "./seoinfo.css";
 import "./seoheadings.css";
 import "./seorel.css";
+import "./fontlist.css";
 import "./tabswitcher.css";
 import "./timecode.css";
 import "./historysearch.css";
@@ -26,6 +27,7 @@ import { showImageList, isImageListVisible } from "./imagelist";
 import { showSeoInfo, hideSeoInfo, isSeoInfoVisible } from "./seoinfo";
 import { showSeoHeadings, hideSeoHeadings, isSeoHeadingsVisible } from "./seoheadings";
 import { showSeoRelLinks, showSeoBlankLinks, hideSeoRelLinks, isSeoRelLinksVisible } from "./seorel";
+import { showFontList, hideFontList, isFontListVisible } from "./fontlist";
 import { showTimecode, hideTimecode, isTimecodeVisible, saveCurrentTimecode, goToTime, exportTimecodes, importTimecodes, startTimecodeWatcher } from "./timecode";
 import { showHistorySearch, hideHistorySearch, isHistorySearchVisible, HistoryEntry } from "./historysearch";
 import { showFind, hideFind, isFindVisible } from "./findinpage";
@@ -132,6 +134,7 @@ type Action =
   | "showSeoInfo"
   | "showSeoHeadings"
   | "showSeoRelLinks"
+  | "showFonts"
   | "showSeoBlankLinks"
   | "inputEdit"
   | "inputClearEdit"
@@ -551,6 +554,7 @@ const actions: Record<Action, () => void> = {
   findInAccess: () => { findInAccess(); },
   showSeoHeadings: () => { showSeoHeadings(); },
   showSeoRelLinks: () => { showSeoRelLinks(); },
+  showFonts: () => { showFontList(); },
   showSeoBlankLinks: () => { showSeoBlankLinks(); },
   inputEdit: () => { session = beginHints("ie"); },
   inputEditStart: () => { session = beginHints("is"); },
@@ -658,7 +662,7 @@ function clearCount(): void {
 // Hints, scrolling, find etc. stay in the frame they were pressed in.
 const topFrameActions = new Set<Action>([
   "showProjects", "saveProject", "showHelp", "showHistory", "goToTab",
-  "showSeoInfo", "showSeoHeadings", "showSeoRelLinks", "showSeoBlankLinks", "editUrlCurrentTab", "editUrlNewTab",
+  "showSeoInfo", "showSeoHeadings", "showSeoRelLinks", "showSeoBlankLinks", "showFonts", "editUrlCurrentTab", "editUrlNewTab",
 ]);
 
 function formatVideoTime(t: number): string {
@@ -868,6 +872,7 @@ document.addEventListener(
       if (isSeoInfoVisible()) { hideSeoInfo(); e.preventDefault(); return; }
       if (isSeoHeadingsVisible()) { hideSeoHeadings(); e.preventDefault(); return; }
       if (isSeoRelLinksVisible()) { hideSeoRelLinks(); e.preventDefault(); return; }
+      if (isFontListVisible()) { hideFontList(); e.preventDefault(); return; }
       if (isHistorySearchVisible()) { hideHistorySearch(); e.preventDefault(); return; }
       if (isFindVisible()) { hideFind(); e.preventDefault(); return; }
       if (isPromptVisible()) { hidePrompt(); return; }
@@ -889,6 +894,7 @@ document.addEventListener(
     if (isSeoInfoVisible() && key === "q") { hideSeoInfo(); e.preventDefault(); return; }
     if (isSeoHeadingsVisible() && key === "q") { hideSeoHeadings(); e.preventDefault(); return; }
     if (isSeoRelLinksVisible() && key === "q") { hideSeoRelLinks(); e.preventDefault(); return; }
+    if (isFontListVisible() && key === "q") { hideFontList(); e.preventDefault(); return; }
     if (isHelpVisible() && key === "q") { hideHelp(); e.preventDefault(); return; }
 
     if (isHelpVisible()) return;
