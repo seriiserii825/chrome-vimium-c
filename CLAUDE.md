@@ -88,6 +88,8 @@ Escape calls `unhoverLast()` which reverses both.
 
 **Fonts** (`fontlist.ts`) — `Sf` opens a panel of the fonts used by visible text, grouped by computed `font-family` stack and sorted by element count. Each row shows the font actually rendered (first family in the stack that is generic, a loaded `@font-face`, or locally installed per a canvas width test), a sample in that font, the stack, and the weights / sizes / styles used. Clicking a row closes the panel, scrolls to the first element and outlines all elements using it for 2s. Below: every `document.fonts` face with weight/style/status. Escape / `q` closes.
 
+**Class names** (`classnames.ts`) — `Sl` toggles a badge at the top-left of every visible element that has classes matching one-word / kebab-case / BEM (`block__elem--mod`; other classes and `bs-*` ignored, max 1500 elements). Elements sharing the same corner are merged into one badge (one line each, outer first), badges are nudged down so they don't overlap. Colors: block blue, `__elem` green, `--mod` yellow. Hovering a line outlines the element and shows a tooltip (tag, id, all classes, size); click copies its classes. Escape / `q` / `Sl` closes.
+
 **Per-site on/off** (`sites.ts`) — hostnames listed in `chrome.storage.local` `bs-disabled-sites`. On those hosts content.ts ignores every key (keydown/keyup return early; iframes use the top page's host via `location.ancestorOrigins`). `Alt+\` (`toggleSite`) toggles it — on a disabled site it's the only key content.ts still handles; the toolbar icon's right-click menu does the same ("Disable/Enable Vimium on host"). The icon gets an `OFF` badge on disabled tabs; the page shows a toast when the state changes.
 
 **Cookie confirm** (`cookieconfirm.ts`) — `dc` shows a confirmation dialog before deleting all cookies for the current domain and reloading. Prevents accidental logouts.
@@ -122,6 +124,7 @@ Escape calls `unhoverLast()` which reverses both.
 | `seoheadings.ts` | Heading structure panel |
 | `seorel.ts` | Links-with-rel / target=_blank panels (`Srl`, `Stl`) |
 | `fontlist.ts` | Fonts used on the page panel (`Sf`) |
+| `classnames.ts` | Class-name badges on page blocks (`Sl`) |
 | `imageinfo.ts` | Image info popup (dimensions, size, type) |
 | `imagelist.ts` | All-images panel (`Ia`) |
 | `blocksize.ts` | Block size popup (`bs`) |

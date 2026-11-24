@@ -10,6 +10,7 @@ import "./seoinfo.css";
 import "./seoheadings.css";
 import "./seorel.css";
 import "./fontlist.css";
+import "./classnames.css";
 import "./tabswitcher.css";
 import "./timecode.css";
 import "./historysearch.css";
@@ -28,6 +29,7 @@ import { showSeoInfo, hideSeoInfo, isSeoInfoVisible } from "./seoinfo";
 import { showSeoHeadings, hideSeoHeadings, isSeoHeadingsVisible } from "./seoheadings";
 import { showSeoRelLinks, showSeoBlankLinks, hideSeoRelLinks, isSeoRelLinksVisible } from "./seorel";
 import { showFontList, hideFontList, isFontListVisible } from "./fontlist";
+import { showClassNames, hideClassNames, isClassNamesVisible } from "./classnames";
 import { showTimecode, hideTimecode, isTimecodeVisible, saveCurrentTimecode, goToTime, exportTimecodes, importTimecodes, startTimecodeWatcher } from "./timecode";
 import { showHistorySearch, hideHistorySearch, isHistorySearchVisible, HistoryEntry } from "./historysearch";
 import { showFind, hideFind, isFindVisible } from "./findinpage";
@@ -135,6 +137,7 @@ type Action =
   | "showSeoHeadings"
   | "showSeoRelLinks"
   | "showFonts"
+  | "showClassNames"
   | "showSeoBlankLinks"
   | "inputEdit"
   | "inputClearEdit"
@@ -555,6 +558,7 @@ const actions: Record<Action, () => void> = {
   showSeoHeadings: () => { showSeoHeadings(); },
   showSeoRelLinks: () => { showSeoRelLinks(); },
   showFonts: () => { showFontList(); },
+  showClassNames: () => { showClassNames(); },
   showSeoBlankLinks: () => { showSeoBlankLinks(); },
   inputEdit: () => { session = beginHints("ie"); },
   inputEditStart: () => { session = beginHints("is"); },
@@ -873,6 +877,7 @@ document.addEventListener(
       if (isSeoHeadingsVisible()) { hideSeoHeadings(); e.preventDefault(); return; }
       if (isSeoRelLinksVisible()) { hideSeoRelLinks(); e.preventDefault(); return; }
       if (isFontListVisible()) { hideFontList(); e.preventDefault(); return; }
+      if (isClassNamesVisible()) { hideClassNames(); e.preventDefault(); return; }
       if (isHistorySearchVisible()) { hideHistorySearch(); e.preventDefault(); return; }
       if (isFindVisible()) { hideFind(); e.preventDefault(); return; }
       if (isPromptVisible()) { hidePrompt(); return; }
@@ -895,6 +900,7 @@ document.addEventListener(
     if (isSeoHeadingsVisible() && key === "q") { hideSeoHeadings(); e.preventDefault(); return; }
     if (isSeoRelLinksVisible() && key === "q") { hideSeoRelLinks(); e.preventDefault(); return; }
     if (isFontListVisible() && key === "q") { hideFontList(); e.preventDefault(); return; }
+    if (isClassNamesVisible() && key === "q") { hideClassNames(); e.preventDefault(); return; }
     if (isHelpVisible() && key === "q") { hideHelp(); e.preventDefault(); return; }
 
     if (isHelpVisible()) return;

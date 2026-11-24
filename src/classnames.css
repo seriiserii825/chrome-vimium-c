@@ -1,0 +1,69 @@
+/* Overlay container — absolute so badges scroll with the page */
+#bs-cls-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  z-index: 2147483645;
+  pointer-events: none;
+}
+
+/* Tooltip-like badge at the element's top-left corner */
+.bs-cls-badge {
+  position: absolute;
+  max-width: 360px;
+  font: 600 10px/1.45 monospace;
+  background: rgba(30, 30, 46, 0.92);
+  border: 1px solid #89b4fa;
+  border-radius: 3px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+
+.bs-cls-line {
+  padding: 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.bs-cls-line + .bs-cls-line {
+  border-top: 1px solid #45475a;
+}
+
+.bs-cls-line:hover {
+  background: #45475a;
+}
+
+.bs-cls-block { color: #89b4fa; }
+.bs-cls-elem  { color: #a6e3a1; }
+.bs-cls-mod   { color: #f9e2af; }
+
+#bs-cls-highlight {
+  position: fixed;
+  display: none;
+  box-sizing: border-box;
+  border: 2px solid #f38ba8;
+  background: rgba(243, 139, 168, 0.12);
+  z-index: 2147483644;
+  pointer-events: none;
+}
+
+#bs-cls-tooltip {
+  position: fixed;
+  display: none;
+  max-width: 480px;
+  padding: 6px 8px;
+  font: 11px/1.5 monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #cdd6f4;
+  background: #1e1e2e;
+  border: 1px solid #585b70;
+  border-radius: 5px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  z-index: 2147483646;
+  pointer-events: none;
+}

@@ -111,4 +111,5 @@ if,findInFields,Find text in input/textarea/select (Enter next; Esc jumps to fie
 er,reloadExtension,Reload extension,dev
 bs,blockSize,Show block size (hint),dev
 Sf,showFonts,Show fonts used on the page,dev
+Sl,showClassNames,Show class names (BEM / kebab-case) near blocks,dev
 A-\,toggleSite,Enable / disable extension on this site,dev

@@ -466,7 +466,7 @@ export function beginHints(mode: HintMode, count = 1): HintSession | null {
   if (rawElements.length === 0) return null
 
   const clickables: Clickable[] = (rawElements as Array<HTMLElement | Clickable>).map(
-    item => (item instanceof HTMLElement ? { el: item } : item)
+    item => (item instanceof Element ? { el: item as HTMLElement } : item)
   )
 
   const labels = generateLabels(clickables.length)
