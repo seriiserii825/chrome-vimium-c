@@ -90,6 +90,8 @@ Escape calls `unhoverLast()` which reverses both.
 
 **Class names** (`classnames.ts`) — `Sl` toggles a badge at the top-left of every visible element that has classes matching one-word / kebab-case / BEM (`block__elem--mod`; other classes and `bs-*` ignored, max 1500 elements). Elements sharing the same corner are merged into one badge (one line each, outer first), badges are nudged down so they don't overlap. Colors: block blue, `__elem` green, `--mod` yellow. Hovering a line outlines the element and shows a tooltip (tag, id, all classes, size); click copies its classes. Escape / `q` / `Sl` closes.
 
+**Full-page screenshot** (`screenshot.ts`, imported by background) — `Sp` sends `fullScreenshot`; background scrolls the tab's top frame one viewport at a time via `chrome.scripting`, `captureVisibleTab` each step (≥550 ms apart — Chrome's 2/s limit), hides fixed/sticky elements after the first frame so headers don't repeat, stitches on an `OffscreenCanvas` (capped at 32000 px tall), restores scroll and downloads `<page title>.jpg` to the default Downloads folder. Pages that scroll an inner element instead of the window only get the visible part.
+
 **Per-site on/off** (`sites.ts`) — hostnames listed in `chrome.storage.local` `bs-disabled-sites`. On those hosts content.ts ignores every key (keydown/keyup return early; iframes use the top page's host via `location.ancestorOrigins`). `Alt+\` (`toggleSite`) toggles it — on a disabled site it's the only key content.ts still handles; the toolbar icon's right-click menu does the same ("Disable/Enable Vimium on host"). The icon gets an `OFF` badge on disabled tabs; the page shows a toast when the state changes.
 
 **Cookie confirm** (`cookieconfirm.ts`) — `dc` shows a confirmation dialog before deleting all cookies for the current domain and reloading. Prevents accidental logouts.
@@ -125,6 +127,7 @@ Escape calls `unhoverLast()` which reverses both.
 | `seorel.ts` | Links-with-rel / target=_blank panels (`Srl`, `Stl`) |
 | `fontlist.ts` | Fonts used on the page panel (`Sf`) |
 | `classnames.ts` | Class-name badges on page blocks (`Sl`) |
+| `screenshot.ts` | Full-page screenshot stitching (`Sp`, runs in background) |
 | `imageinfo.ts` | Image info popup (dimensions, size, type) |
 | `imagelist.ts` | All-images panel (`Ia`) |
 | `blocksize.ts` | Block size popup (`bs`) |

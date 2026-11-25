@@ -138,6 +138,7 @@ type Action =
   | "showSeoRelLinks"
   | "showFonts"
   | "showClassNames"
+  | "fullScreenshot"
   | "showSeoBlankLinks"
   | "inputEdit"
   | "inputClearEdit"
@@ -559,6 +560,13 @@ const actions: Record<Action, () => void> = {
   showSeoRelLinks: () => { showSeoRelLinks(); },
   showFonts: () => { showFontList(); },
   showClassNames: () => { showClassNames(); },
+  fullScreenshot: () => {
+    chrome.runtime.sendMessage({ type: "fullScreenshot" }, (res?: { ok: boolean; file?: string; truncated?: boolean; error?: string }) => {
+      if (chrome.runtime.lastError || !res) { showToast("no response", "Screenshot failed: "); return; }
+      if (!res.ok) { showToast(res.error ?? "unknown error", "Screenshot failed: "); return; }
+      showToast(res.file ?? "", res.truncated ? "Saved (cut at 32000px): " : "Saved: ");
+    });
+  },
   showSeoBlankLinks: () => { showSeoBlankLinks(); },
   inputEdit: () => { session = beginHints("ie"); },
   inputEditStart: () => { session = beginHints("is"); },

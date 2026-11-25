@@ -1,4 +1,5 @@
 import { DISABLED_SITES_KEY, hostOf, getDisabledSites, toggleSite } from "./sites";
+import { captureFullPage } from "./screenshot";
 
 (async () => {
   const res = await chrome.storage.local.get("reloadedToast");
@@ -16,6 +17,11 @@ chrome.runtime.onMessage.addListener((msg: { type: string; url?: string; urls?: 
     chrome.tabs.sendMessage(_sender.tab.id, { type: "runAction", action: msg.action }, { frameId: 0 }, (res) => {
       sendResponse({ ok: !chrome.runtime.lastError && !!res?.ok });
     });
+    return true;
+  }
+
+  if (type === "fullScreenshot" && _sender.tab?.id !== undefined) {
+    captureFullPage(_sender.tab.id, _sender.tab.windowId).then(sendResponse);
     return true;
   }
 
