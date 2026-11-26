@@ -745,16 +745,25 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-function isEditing(): boolean {
-  const el = document.activeElement;
+function isEditableEl(el: Element | null): boolean {
   if (!el) return false;
   const tag = el.tagName.toLowerCase();
-  return (
-    tag === "input" ||
-    tag === "textarea" ||
-    tag === "select" ||
-    (el as HTMLElement).isContentEditable
-  );
+  if (tag === "textarea" || tag === "select") return true;
+  if (tag === "input") {
+    const type = (el as HTMLInputElement).type.toLowerCase();
+    return !["checkbox", "radio", "button", "submit", "reset", "image", "file", "range", "color"].includes(type);
+  }
+  return (el as HTMLElement).isContentEditable === true;
+}
+
+// document.activeElement stops at a shadow host — inputs inside web components
+// (open shadow roots) are only reachable through shadowRoot.activeElement / composedPath
+function isEditing(e?: KeyboardEvent): boolean {
+  let el: Element | null = document.activeElement;
+  while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement;
+  if (isEditableEl(el)) return true;
+  const target = e?.composedPath()[0];
+  return target instanceof Element && isEditableEl(target);
 }
 
 const hookedDocs = new WeakSet<Document>();
@@ -915,7 +924,7 @@ document.addEventListener(
     if (isHistorySearchVisible()) return;
     if (isFindVisible()) return;
 
-    if (isEditing()) return;
+    if (isEditing(e)) return;
     if (e.repeat) return; // ignore OS key-repeat, we handle held keys ourselves
 
     if (!pendingPrefix && countPrefix === "" && /^[1-9]$/.test(e.key)) {
